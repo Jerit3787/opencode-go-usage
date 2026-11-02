@@ -240,7 +240,7 @@ it("calculates per-model window percentages and allowances", () => {
   expect(windowPercent(50, 100, "monthly")).toBe(50)
   expect(windowPercent(50, undefined, "monthly")).toBeUndefined()
   expect(modelAllowance("deepseek-v4.1-flash")).toBe(100)
-  expect(modelAllowance("deepseek-v4-pro")).toBe(15)
+  expect(modelAllowance("deepseek-v4-pro")).toBe(20)
   expect(modelAllowance("deepseek-v4.1-flash", { "deepseek-v4.1-flash": 16 })).toBe(16)
   expect(modelAllowance("unknown")).toBeUndefined()
   expect(modelDisplayName("deepseek-v4-pro")).toBe("DeepSeek V4 Pro")
@@ -274,15 +274,9 @@ it("sums per-model percentages into the pooled monthly total", () => {
       monthlyTokens: 0,
     },
   ]
-  expect(
-    totalModelPercent(models, { "deepseek-v4-pro": 20 }, "monthly"),
-  ).toBe(100)
-  expect(
-    totalModelPercent(models, { "deepseek-v4-pro": 20 }, "weekly"),
-  ).toBe(100)
-  expect(
-    totalModelPercent(models, { "deepseek-v4-pro": 20 }, "rolling"),
-  ).toBe(100)
+  expect(totalModelPercent(models, undefined, "monthly")).toBe(100)
+  expect(totalModelPercent(models, undefined, "weekly")).toBe(100)
+  expect(totalModelPercent(models, undefined, "rolling")).toBe(100)
   expect(
     totalModelPercent(
       models,

@@ -28,8 +28,6 @@ const MODEL_COLORS = [
 function ModelRow(props: {
   model: ModelUsage
   allowance: number | undefined
-  published: number | undefined
-  effective: boolean
   color: string
 }) {
   const monthlyPct = () =>
@@ -78,15 +76,8 @@ function ModelRow(props: {
           </span>
           <span style={{ "font-size": "11px", color: "var(--v2-text-text-muted)" }}>
             {formatUSD(props.model.monthlyCost)} this period
-            {props.allowance
-              ? ` · ${formatUSD(props.allowance)}/mo ${props.effective ? "effective" : "allowance"}`
-              : ""}
+            {props.allowance ? ` · ${formatUSD(props.allowance)}/mo allowance` : ""}
           </span>
-          <Show when={props.effective && props.published !== undefined}>
-            <span style={{ "font-size": "11px", color: "var(--v2-text-text-faint)" }}>
-              Published {formatUSD(props.published!)}
-            </span>
-          </Show>
         </div>
         <div style={{ display: "grid", gap: "3px", "text-align": "right" }}>
           <span style={{ "font-size": "13px", "font-weight": 600, color: color() }}>
@@ -160,17 +151,9 @@ export function ModelBreakdown(props: { state: UsageState; ctx: Context; ui: Ui 
     }
     return allowances
   }
-  const effectiveAllowances = () => {
-    const positive = models().filter((model) => model.monthlyCost > 0)
-    const server = serverMonthly()
-    if (positive.length !== 1 || server <= 0) return {}
-    const model = positive[0]
-    return { [model.modelID]: model.monthlyCost / (server / 100) }
-  }
-  const allowances = () => ({ ...effectiveAllowances(), ...overrides() })
-  const totalMonthly = () => totalModelPercent(models(), allowances(), "monthly")
-  const totalWeekly = () => totalModelPercent(models(), allowances(), "weekly")
-  const totalRolling = () => totalModelPercent(models(), allowances(), "rolling")
+  const totalMonthly = () => totalModelPercent(models(), overrides(), "monthly")
+  const totalWeekly = () => totalModelPercent(models(), overrides(), "weekly")
+  const totalRolling = () => totalModelPercent(models(), overrides(), "rolling")
   const totalTone = () => usageTone(totalMonthly(), false)
   const contributions = () =>
     models().map((model, index) => ({
@@ -178,7 +161,7 @@ export function ModelBreakdown(props: { state: UsageState; ctx: Context; ui: Ui 
       percent:
         windowPercent(
           model.monthlyCost,
-          allowances()[model.modelID] ?? modelAllowance(model.modelID),
+          modelAllowance(model.modelID, overrides()),
           "monthly",
         ) ?? 0,
       color: MODEL_COLORS[index % MODEL_COLORS.length],
@@ -209,7 +192,7 @@ export function ModelBreakdown(props: { state: UsageState; ctx: Context; ui: Ui 
             Model breakdown
           </div>
           <div style={{ "font-size": "12px", color: "var(--v2-text-text-muted)" }}>
-            Local usage in this allowance period.
+            Local recorded spend in this allowance period.
           </div>
         </div>
         <div style={{ "font-size": "12px", color: "var(--v2-text-text-muted)" }}>
@@ -258,12 +241,7 @@ export function ModelBreakdown(props: { state: UsageState; ctx: Context; ui: Ui 
           {(model, index) => (
             <ModelRow
               model={model}
-              allowance={allowances()[model.modelID] ?? modelAllowance(model.modelID)}
-              published={modelAllowance(model.modelID)}
-              effective={
-                effectiveAllowances()[model.modelID] !== undefined &&
-                overrides()[model.modelID] === undefined
-              }
+              allowance={modelAllowance(model.modelID, overrides())}
               color={MODEL_COLORS[index() % MODEL_COLORS.length]}
             />
           )}
@@ -286,7 +264,7 @@ export function ModelBreakdown(props: { state: UsageState; ctx: Context; ui: Ui 
                   color: "var(--v2-text-text-base)",
                 }}
               >
-                Pooled total
+                Local pooled total
               </span>
               <span style={{ "font-size": "11px", color: "var(--v2-text-text-muted)" }}>
                 {formatUSD(total())} local · sum of model contributions
@@ -380,15 +358,12 @@ export function ModelBreakdown(props: { state: UsageState; ctx: Context; ui: Ui 
         </span>
         <span>
           Local rows use this server's sessions; the server meters above include all
-          clients and machines.
+          clients and machines. If the server is higher than the local pooled total, the
+          difference is usage from other clients or allowance cost not recorded here.
         </span>
         <span>
-          The effective allowance is inferred from the server monthly percentage and this
-          server's spend when one model is active. If your console shows a different
-          allowance, set it in the plugin's `allowances` option.
-        </span>
-        <span>
-          Published Go allowances are used for the remaining models.
+          Allowances default to DeepSeek V4.1 Flash $100 and V4 Pro $20; set the plugin's
+          `allowances` option to override either one.
         </span>
         <button
           type="button"

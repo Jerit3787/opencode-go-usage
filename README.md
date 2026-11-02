@@ -33,7 +33,7 @@ The Go usage endpoint returns one set of window meters. The **Go usage** setting
 
 - local spend, token count, and the model's monthly allowance
 - the model's share of its 5-hour, weekly, and monthly allowances
-- a **Pooled total** row that sums the model percentages into the pooled percentage
+- a **Local pooled total** row that sums the model percentages
 
 How the percentages are calculated:
 
@@ -44,11 +44,11 @@ model weekly %  = model spend in the last 7d   ÷ (50% of the monthly allowance)
 total monthly % = Σ model monthly %
 ```
 
-Allowances are pooled in percentage terms: a model at 50% of its allowance plus another model at 50% of its allowance is 100% of the monthly pool. The server meters at the top of the page are the account total and can include other machines or clients; the **Pooled total** is this server's contribution.
+Allowances are pooled in percentage terms: a model at 50% of its allowance plus another model at 50% of its allowance is 100% of the monthly pool. The server meters at the top of the page are the account total and can include other machines or clients; the **Local pooled total** is this server's contribution.
 
-The percentages use **recorded cost**, not token count. A free, promotional, or unpriced model can show millions of tokens at $0.00 and contribute 0%. When one model is active, the card infers an effective allowance from the server monthly meter so the pooled total reconciles with the server; the published allowance is shown alongside it, and the `allowances` option overrides both.
+The percentages use **recorded cost**, not token count. A free, promotional, or unpriced model can show millions of tokens at $0.00 and contribute 0%.
 
-Published Go allowances are used as defaults, pulled from the [Go usage limits table](https://opencode.ai/v2/docs/console/go#usage-limits) on 2026-11-02. That table lists DeepSeek V4 Pro at **$15/month**; if your workspace gives it **$20**, use the override below. The settings card also links to the current table.
+The defaults are **DeepSeek V4.1 Flash $100** and **DeepSeek V4 Pro $20**. The [public Go table](https://opencode.ai/v2/docs/console/go#usage-limits) currently lists V4 Pro at $15, so the defaults are deliberately overridable: set the `allowances` option to match your workspace. The settings card links to the current table.
 
 Overrides require the object form of the plugin entry:
 
@@ -68,7 +68,7 @@ Overrides require the object form of the plugin entry:
 }
 ```
 
-If the **Pooled total** and the server monthly meter differ, the server meter includes usage from other clients or machines, or the allowance table does not match your workspace. Use your workspace's actual allowance values in the override.
+If the **Local pooled total** and the server monthly meter differ, the server meter includes usage from other clients or machines, or the recorded local cost is not the full allowance cost. The local card does not fabricate a matching total; it shows both numbers. Use your workspace's actual allowance values in the override if the table is the issue.
 
 ## Install
 

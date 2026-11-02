@@ -221,11 +221,11 @@ model weekly %  = model spend in the last 7d  ÷ (50% of the monthly allowance)
 total monthly % = Σ model monthly %
 ```
 
-The card shows model name, local spend, token count, monthly allowance, monthly/weekly/5-hour share, a monthly bar, and a **Pooled total** row that sums the model percentages. The server meters are the account total and may include other clients or machines.
+The card shows model name, local spend, token count, monthly allowance, monthly/weekly/5-hour share, a monthly bar, and a **Local pooled total** row that sums the model percentages. The server meters are the account total and may include other clients or machines; the card must show both rather than infer an allowance that forces them to match.
 
 Allowances are pooled in percentage terms: a model at 50% of its allowance plus another model at 50% of its allowance is 100% of the monthly pool. The card must explain this sum, not treat the model percentages as independent limits.
 
-Published allowances are defaults, pulled from the Go usage limits table on 2026-11-02. The plugin option `allowances` is a `Record<modelID, number>` override for workspaces with different limits. The data source is local session statistics: model IDs, costs, and token counts only, never prompts or message content.
+Defaults are DeepSeek V4.1 Flash $100 and DeepSeek V4 Pro $20, matching the workspace. The public Go table is linked and currently lists V4 Pro at $15. The plugin option `allowances` is a `Record<modelID, number>` override for workspaces with different limits. The data source is local session statistics: model IDs, costs, and token counts only, never prompts or message content.
 
 ### States
 
