@@ -41,6 +41,13 @@ it("maps a Cloudflare 403 to a network error", async () => {
     async () => new Response("<html>cloudflare error 1010</html>", { status: 403 }),
   )
   expect(result.state).toBe("error")
+
+  const html = await requestUsage(
+    "oc_sk_secret",
+    async () =>
+      new Response("", { status: 403, headers: { "content-type": "text/html; charset=utf-8" } }),
+  )
+  expect(html.state).toBe("error")
 })
 
 it("maps network failures and bad JSON to errors without the key", async () => {

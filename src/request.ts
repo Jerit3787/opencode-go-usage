@@ -24,7 +24,8 @@ export async function requestUsage(
 
     if (response.status === 403) {
       const body = await response.text().catch(() => "")
-      if (/cloudflare|1010/i.test(body)) {
+      const type = response.headers.get("content-type") ?? ""
+      if (/cloudflare|1010/i.test(body) || type.toLowerCase().includes("text/html")) {
         return { state: "error", message: "OpenCode couldn't reach the usage service." }
       }
       return { state: "no-plan", message: "This key has no OpenCode Go allowance." }

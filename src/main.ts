@@ -47,9 +47,13 @@ export const main: Plugin.MainSetup = (ctx) => {
       } catch {
         try {
           const file = authFilePath()
-          choice = file
-            ? readAuthFile(JSON.parse(await readFile(file, "utf8")))
-            : { kind: "none" }
+          if (!file) {
+            return {
+              state: "unavailable",
+              message: "Couldn't check your OpenCode connection.",
+            }
+          }
+          choice = readAuthFile(JSON.parse(await readFile(file, "utf8")))
         } catch {
           return {
             state: "unavailable",
