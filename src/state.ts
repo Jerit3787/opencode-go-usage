@@ -7,6 +7,7 @@ import {
   parseStatsModels,
   subtractMonth,
   withStaleData,
+  type ConsoleModelResult,
   type ModelAnalyticsResult,
   type UsageResult,
 } from "./usage"
@@ -17,6 +18,8 @@ export type UsageState = {
   initialLoading: () => boolean
   models: () => ModelAnalyticsResult | undefined
   modelsLoading: () => boolean
+  consoleModels: () => ConsoleModelResult | undefined
+  consoleModelsLoading: () => boolean
   server: () => string | undefined
   refresh(opts?: { force?: boolean; server?: string }): Promise<void>
   refreshModels(opts?: { force?: boolean; server?: string }): Promise<void>
@@ -32,9 +35,12 @@ export function createUsageState(ctx: Context): UsageState {
   const [settledServer, setSettledServer] = createSignal<string>()
   const [models, setModels] = createSignal<ModelAnalyticsResult>()
   const [modelsLoading, setModelsLoading] = createSignal(false)
+  const [consoleModels, setConsoleModels] = createSignal<ConsoleModelResult>()
+  const [consoleModelsLoading, setConsoleModelsLoading] = createSignal(false)
   const [loading, setLoading] = createSignal(false)
   const [server, setServer] = createSignal<string>()
   let generation = 0
+  let consoleGeneration = 0
 
   const visible = () => {
     const target = server() ?? "sidecar"
@@ -76,7 +82,32 @@ export function createUsageState(ctx: Context): UsageState {
     }
   }
 
+  const refreshConsoleModels = async (
+    opts: { force?: boolean; server?: string } = {},
+  ) => {
+    const target = opts.server ?? server() ?? "sidecar"
+    const request = ++consoleGeneration
+    setConsoleModelsLoading(true)
+
+    try {
+      const input: { server?: string; force?: boolean } = { server: target }
+      if (opts.force) input.force = true
+      const result = await ctx.main(UsageIpc).consoleModels(input)
+      if (request !== consoleGeneration) return
+      setConsoleModels(result)
+    } catch {
+      if (request !== consoleGeneration) return
+      setConsoleModels({
+        state: "error",
+        message: "Console model usage couldn't be loaded.",
+      })
+    } finally {
+      if (request === consoleGeneration) setConsoleModelsLoading(false)
+    }
+  }
+
   const refreshModels = async (opts: { force?: boolean; server?: string } = {}) => {
+    void refreshConsoleModels(opts)
     const target = opts.server ?? server() ?? "sidecar"
     const current = resultServer() === target ? dataOf(rawResult()) : undefined
     const now = Date.now()
@@ -145,6 +176,8 @@ export function createUsageState(ctx: Context): UsageState {
     initialLoading: () => loading() && settledServer() !== (server() ?? "sidecar"),
     models,
     modelsLoading,
+    consoleModels,
+    consoleModelsLoading,
     server,
     refresh,
     refreshModels,

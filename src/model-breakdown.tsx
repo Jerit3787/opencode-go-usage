@@ -8,7 +8,6 @@ import {
   formatPercent1,
   formatTokens,
   formatUSD,
-  GO_PRICING_URL,
   modelAllowance,
   totalModelPercent,
   usageColor,
@@ -333,55 +332,6 @@ export function ModelBreakdown(props: { state: UsageState; ctx: Context; ui: Ui 
         </div>
       </Show>
 
-      <div
-        style={{
-          "border-top": "0.5px solid var(--v2-border-border-muted)",
-          padding: "12px 16px 14px",
-          display: "grid",
-          gap: "4px",
-          "font-size": "11px",
-          "line-height": "1.45",
-          color: "var(--v2-text-text-faint)",
-        }}
-      >
-        <span>
-          Monthly % = model spend ÷ model allowance. 5-hour % = last 5h ÷ 20% of the
-          allowance; weekly % = last 7d ÷ 50%.
-        </span>
-        <span>
-          Total monthly % is the sum of the model percentages. 100% means the pooled
-          monthly allowance is exhausted.
-        </span>
-        <span>
-          Percentages use recorded cost, not token count. Free or promotional usage can
-          show many tokens at $0 and contribute 0%.
-        </span>
-        <span>
-          Local rows use this server's sessions; the server meters above include all
-          clients and machines. If the server is higher than the local pooled total, the
-          difference is usage from other clients or allowance cost not recorded here.
-        </span>
-        <span>
-          Allowances default to DeepSeek V4.1 Flash $100 and V4 Pro $20; set the plugin's
-          `allowances` option to override either one.
-        </span>
-        <button
-          type="button"
-          onClick={() => props.ctx.system.openExternal(GO_PRICING_URL)}
-          style={{
-            "justify-self": "start",
-            border: "none",
-            background: "transparent",
-            color: "var(--v2-text-text-accent)",
-            "font-size": "11px",
-            "font-weight": 530,
-            padding: 0,
-            cursor: "pointer",
-          }}
-        >
-          OpenCode Go pricing ↗
-        </button>
-      </div>
     </div>
   )
 }

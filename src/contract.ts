@@ -25,6 +25,32 @@ const DataSchema = Schema.Struct({
   ),
 })
 
+const ConsoleModelSchema = Schema.Struct({
+  providerID: Schema.String,
+  modelID: Schema.String,
+  name: Schema.String,
+  cost: Schema.Number,
+  requests: Schema.Number,
+  tokens: Schema.Number,
+  inputTokens: Schema.Number,
+  outputTokens: Schema.Number,
+  cacheReadTokens: Schema.Number,
+  cacheWrite5mTokens: Schema.Number,
+  cacheWrite1hTokens: Schema.Number,
+})
+
+const ConsoleModelsResultSchema = Schema.Union([
+  Schema.Struct({
+    state: Schema.Literal("ok"),
+    data: Schema.Struct({
+      models: Schema.Array(ConsoleModelSchema),
+      range: Schema.Literal("30d"),
+      totalCost: Schema.Number,
+    }),
+  }),
+  Schema.Struct({ state: Schema.Literal("error"), message: Schema.String }),
+])
+
 const ResultSchema = Schema.Union([
   Schema.Struct({ state: Schema.Literal("ok"), data: DataSchema }),
   Schema.Struct({ state: Schema.Literal("signed-out") }),
@@ -56,6 +82,13 @@ export const UsageIpc = Ipc.define({
         force: Schema.optional(Schema.Boolean),
       }),
       output: ResultSchema,
+    },
+    consoleModels: {
+      input: Schema.Struct({
+        server: Schema.optional(Schema.String),
+        force: Schema.optional(Schema.Boolean),
+      }),
+      output: ConsoleModelsResultSchema,
     },
   },
 })

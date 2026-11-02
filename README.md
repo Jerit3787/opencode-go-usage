@@ -25,32 +25,40 @@ GET https://opencode.ai/zen/go/v1/usage
 
 The response contains `rolling`, `weekly`, and `monthly` percentages and reset times. This is the same data the Go console shows; the plugin does not estimate spend.
 
-When the desktop app is signed in to OpenCode Console, the plugin prefers the app's `/api/experimental/usage/limits` endpoint. It returns the Console workspace and the same Go meters, so the aggregate meters and the **View in Console** link follow the signed-in workspace. If Console is not connected, the plugin falls back to the Go API key endpoint. The Console endpoint does not expose per-model activity, so the model breakdown remains this server's local session stats.
+When the desktop app is signed in to OpenCode Console, the plugin prefers the app's `/api/experimental/usage/limits` endpoint. It returns the Console workspace and the same Go meters, so the aggregate meters and the **View in Console** link follow the signed-in workspace. If Console is not connected, the plugin falls back to the Go API key endpoint.
 
-The built-in OpenCode Usage page also uses the Console workspace. If the active credential is Console/OAuth only, the plugin can still show the aggregate meters from the Console endpoint; the per-model card notes that its numbers are local.
+The plugin also reads the Console per-model activity endpoint from the same signed-in workspace:
+
+```text
+GET https://opencode.ai/console/api/usage/models?range=30d&pageSize=100
+```
+
+It returns requests, tokens, and list cost per model. Those costs feed the per-model card. The Console token never leaves the main process and is never returned to the window.
 
 ## Model breakdown
 
-The Go usage endpoint returns one set of window meters. The **Go usage** settings page also reads the local OpenCode server's session stats and shows each Go model's usage for the current allowance period:
+When Console is connected, the card uses Console activity for the **last 30 days**. It shows each Go model's Console cost, monthly limit, contribution, requests, and tokens, then:
 
-- local spend, token count, and the model's monthly allowance
-- the model's share of its 5-hour, weekly, and monthly allowances
-- a **Local pooled total** row that sums the model percentages
+- **Calculated monthly** — the sum of `model cost ÷ model monthly limit`
+- **Server monthly** — the meter returned by the Go usage endpoint
+- **Difference** — shown explicitly, for example `+2.9 pts`
 
 How the percentages are calculated:
 
 ```text
-model monthly % = model spend this period      ÷ model monthly allowance
-model 5-hour %  = model spend in the last 5h   ÷ (20% of the monthly allowance)
-model weekly %  = model spend in the last 7d   ÷ (50% of the monthly allowance)
+model monthly % = Console model cost            ÷ model monthly limit
+model 5-hour %  = cost in the current 5h window ÷ (20% of the monthly limit)
+model weekly %  = cost in the current UTC week  ÷ (50% of the monthly limit)
 total monthly % = Σ model monthly %
 ```
 
-Allowances are pooled in percentage terms: a model at 50% of its allowance plus another model at 50% of its allowance is 100% of the monthly pool. The server meters at the top of the page are the account total and can include other machines or clients; the **Local pooled total** is this server's contribution.
+The `$60` Go pool cancels out: `allowance = cost × (60 ÷ model limit)`, so `Σ allowance ÷ 60` is the same as `Σ cost ÷ model limit`.
 
-The percentages use **recorded cost**, not token count. A free, promotional, or unpriced model can show millions of tokens at $0.00 and contribute 0%.
+The 5-hour window starts at the first request after reset, not a fixed trailing 5 hours. The weekly window is the UTC calendar week, not a trailing 7 days.
 
-The defaults are **DeepSeek V4.1 Flash $100** and **DeepSeek V4 Pro $20**. The [public Go table](https://opencode.ai/v2/docs/console/go#usage-limits) currently lists V4 Pro at $15, so the defaults are deliberately overridable: set the `allowances` option to match your workspace. The settings card links to the current table.
+Console cost includes peak pricing: **2× on weekdays 01:00–04:00 and 06:00–10:00 UTC**. The Console Activity table shows one aggregate cost per model; it does not split peak and off-peak.
+
+The defaults are **DeepSeek V4.1 Flash $100** and **DeepSeek V4 Pro $15**, matching the [public Go table](https://opencode.ai/v2/docs/console/go#usage-limits). Set the `allowances` option if your workspace has different limits.
 
 Overrides require the object form of the plugin entry:
 
@@ -62,7 +70,7 @@ Overrides require the object form of the plugin entry:
       "options": {
         "allowances": {
           "deepseek-v4.1-flash": 100,
-          "deepseek-v4-pro": 20
+          "deepseek-v4-pro": 15
         }
       }
     }
@@ -70,7 +78,7 @@ Overrides require the object form of the plugin entry:
 }
 ```
 
-If the **Local pooled total** and the server monthly meter differ, the server meter includes usage from other clients or machines, or the recorded local cost is not the full allowance cost. The local card does not fabricate a matching total; it shows both numbers. Use your workspace's actual allowance values in the override if the table is the issue.
+If the calculated total and the server monthly meter differ, the card shows both numbers. The server meter is authoritative; the card does not fabricate a matching allowance. When Console is not connected, the card falls back to this server's local session stats and labels the source as local. Local spend can miss other clients and models whose cost was not recorded.
 
 ## Install
 
@@ -106,11 +114,11 @@ Remove the plugin directory entry from `plugins` in `~/.config/opencode/opencode
 
 ## Privacy
 
-- The API key is read in the Electron main process.
-- It is used only for the Go usage GET.
-- It is never returned to the window, written to plugin storage, or logged.
+- The Go API key and Console OAuth token are read in the Electron main process.
+- The Go key is used only for the Go usage GET. The Console token is used only for the Console usage GETs.
+- Neither secret is returned to the window, written to plugin storage, or logged.
 - The plugin sends no telemetry, prompts, code, or session content.
-- The only requests are the local OpenCode credential read, the local session-stats read, the local Console usage-limits read, and the Go usage GET.
+- The only requests are the local OpenCode credential read, the local session-stats read, the local Console usage-limits read, the Console per-model usage read, and the Go usage GET.
 - The model breakdown reads only model IDs, costs, and token counts; it never reads prompts or message content.
 - Only percentages, reset times, model spend, and token counts are displayed.
 

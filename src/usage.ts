@@ -61,6 +61,30 @@ export type ModelAnalyticsResult =
   | { state: "ok"; data: ModelAnalytics }
   | { state: "error"; message: string }
 
+export type ConsoleModelUsage = {
+  providerID: string
+  modelID: string
+  name: string
+  cost: number
+  requests: number
+  tokens: number
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens: number
+  cacheWrite5mTokens: number
+  cacheWrite1hTokens: number
+}
+
+export type ConsoleModelAnalytics = {
+  models: readonly ConsoleModelUsage[]
+  range: "30d"
+  totalCost: number
+}
+
+export type ConsoleModelResult =
+  | { state: "ok"; data: ConsoleModelAnalytics }
+  | { state: "error"; message: string }
+
 // Monthly allowances from the Go plan table:
 // https://opencode.ai/v2/docs/console/go#usage-limits
 // Pulled 2026-11-02.
@@ -87,7 +111,7 @@ export const GO_MONTHLY_ALLOWANCES: Record<string, number> = {
   "qwen3.8-flash": 30,
   "qwen3.7-plus": 60,
   "deepseek-v4.1-flash": 100,
-  "deepseek-v4-pro": 20,
+  "deepseek-v4-pro": 15,
   "hy4-preview": 30,
   "hy3": 60,
   "grok-4.7": 15,
@@ -445,6 +469,62 @@ function countTokens(tokens: Record<string, unknown>): number {
     number(tokens.reasoning) +
     number(cache.read) +
     number(cache.write)
+  )
+}
+
+function microCents(value: unknown): number {
+  const amount =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && value.trim() !== ""
+        ? Number(value)
+        : 0
+  if (!Number.isFinite(amount)) return 0
+  return amount / 100_000_000
+}
+
+function tokenCount(value: unknown): number {
+  const amount = typeof value === "number" ? value : Number(value)
+  return Number.isFinite(amount) && amount > 0 ? amount : 0
+}
+
+export function parseConsoleModels(body: unknown): ConsoleModelUsage[] {
+  if (!isRecord(body) || !Array.isArray(body.items)) return []
+
+  const models: ConsoleModelUsage[] = []
+  for (const entry of body.items) {
+    if (!isRecord(entry)) continue
+    const providerID = entry.provider
+    const modelID = entry.model
+    if (providerID !== "opencode-go" || typeof modelID !== "string") continue
+
+    const inputTokens = tokenCount(entry.totalInputTokens)
+    const outputTokens = tokenCount(entry.totalOutputTokens)
+    const cacheReadTokens = tokenCount(entry.totalCacheReadTokens)
+    const cacheWrite5mTokens = tokenCount(entry.totalCacheWrite5mTokens)
+    const cacheWrite1hTokens = tokenCount(entry.totalCacheWrite1hTokens)
+    models.push({
+      providerID,
+      modelID,
+      name: modelDisplayName(modelID),
+      cost: microCents(entry.totalCostMicroCents),
+      requests: tokenCount(entry.totalRequests),
+      tokens:
+        inputTokens +
+        outputTokens +
+        cacheReadTokens +
+        cacheWrite5mTokens +
+        cacheWrite1hTokens,
+      inputTokens,
+      outputTokens,
+      cacheReadTokens,
+      cacheWrite5mTokens,
+      cacheWrite1hTokens,
+    })
+  }
+
+  return models.sort(
+    (left, right) => right.cost - left.cost || left.name.localeCompare(right.name),
   )
 }
 

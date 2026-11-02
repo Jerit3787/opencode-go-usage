@@ -4,7 +4,7 @@ import { join } from "node:path"
 import { afterEach, expect, it, vi } from "vitest"
 import { main } from "./main"
 import { USAGE_URL } from "./request"
-import { dataOf, type UsageResult } from "./usage"
+import { dataOf, type ConsoleModelResult, type UsageResult } from "./usage"
 
 const okBody = {
   usage: {
@@ -42,6 +42,7 @@ const credentialBody = {
 
 type Impl = {
   get(input: { server?: string; force?: boolean }): Promise<UsageResult>
+  consoleModels(input: { server?: string; force?: boolean }): Promise<ConsoleModelResult>
 }
 
 const originalXdg = process.env.XDG_DATA_HOME
@@ -163,6 +164,109 @@ it("prefers the signed-in Console usage limits", async () => {
     expect(result.data.workspace?.name).toBe("Personal")
   }
   expect(calls.filter((url) => url.includes("/api/credential"))).toHaveLength(0)
+})
+
+it("returns Console per-model spend for the signed-in workspace", async () => {
+  const calls: string[] = []
+  const consoleCredential = {
+    id: "console",
+    integrationID: "opencode",
+    label: "Personal",
+    active: true,
+    value: {
+      type: "oauth",
+      access: "console-access",
+      metadata: {
+        server: "https://opencode.ai/console",
+        orgID: "org_1",
+        orgName: "Personal",
+      },
+    },
+  }
+  const models = {
+    items: [
+      {
+        provider: "opencode-go",
+        model: "deepseek-v4.1-flash",
+        totalCostMicroCents: "3163470740",
+        totalRequests: "7610",
+        totalInputTokens: "68789760",
+        totalOutputTokens: "7430716",
+        totalCacheReadTokens: "2991292170",
+        totalCacheWrite5mTokens: "0",
+        totalCacheWrite1hTokens: "0",
+      },
+      {
+        provider: "opencode-go",
+        model: "deepseek-v4-pro",
+        totalCostMicroCents: "742366702",
+        totalRequests: "686",
+        totalInputTokens: "2946923",
+        totalOutputTokens: "530766",
+        totalCacheReadTokens: "139498752",
+      },
+      {
+        provider: "opencode",
+        model: "deepseek-v4.1-flash-free",
+        totalCostMicroCents: "0",
+        totalRequests: "545",
+      },
+    ],
+  }
+
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string | URL | Request) => {
+      const url = String(input)
+      calls.push(url)
+      if (url.includes("/api/credential")) {
+        return new Response(JSON.stringify({ data: [consoleCredential] }), { status: 200 })
+      }
+      if (url.includes("/console/api/usage/models")) {
+        return new Response(JSON.stringify(models), { status: 200 })
+      }
+      throw new Error(`unexpected request ${url}`)
+    }),
+  )
+
+  const api = setup()
+  const result = await api.consoleModels({ server: "sidecar" })
+  expect(result.state).toBe("ok")
+  if (result.state === "ok") {
+    expect(result.data.range).toBe("30d")
+    expect(result.data.models).toHaveLength(2)
+    expect(result.data.models[0].modelID).toBe("deepseek-v4.1-flash")
+    expect(result.data.models[0].cost).toBeCloseTo(31.6347074)
+    expect(result.data.models[1].cost).toBeCloseTo(7.42366702)
+    expect(result.data.totalCost).toBeCloseTo(39.05837442)
+  }
+
+  const modelCall = calls.find((url) => url.includes("/console/api/usage/models"))
+  expect(modelCall).toContain("range=30d")
+  expect(modelCall).toContain("pageSize=100")
+
+  await api.consoleModels({ server: "sidecar" })
+  expect(calls.filter((url) => url.includes("/console/api/usage/models"))).toHaveLength(1)
+})
+
+it("reports an error when Console isn't signed in for per-model spend", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string | URL | Request) => {
+      const url = String(input)
+      if (url.includes("/api/credential")) {
+        return new Response(JSON.stringify(credentialBody), { status: 200 })
+      }
+      throw new Error(`unexpected request ${url}`)
+    }),
+  )
+
+  const api = setup()
+  const result = await api.consoleModels({ server: "sidecar" })
+  expect(result).toEqual({
+    state: "error",
+    message: "Sign in to OpenCode Console to load per-model Console costs.",
+  })
 })
 
 it("keeps the last good reading when a forced refresh fails", async () => {

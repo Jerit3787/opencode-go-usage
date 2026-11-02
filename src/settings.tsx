@@ -1,5 +1,7 @@
 import { onMount, Show } from "solid-js"
 import type { Context } from "@opencode/plugin/gui"
+import { ConsoleBreakdown } from "./console-breakdown"
+import { UsageInfo } from "./info-card"
 import { cardStyle, rowStyle } from "./layout"
 import { MeterRow } from "./meter"
 import { ModelBreakdown } from "./model-breakdown"
@@ -31,6 +33,15 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
       window,
       tone: usageTone(window.percent, window.limited),
     }
+  }
+
+  const consoleReady = () => {
+    const result = props.state.consoleModels()
+    return result?.state === "ok" && result.data.models.length > 0 ? result : undefined
+  }
+  const consoleError = () => {
+    const result = props.state.consoleModels()
+    return result?.state === "error" ? result.message : undefined
   }
 
   const updated = () => {
@@ -115,7 +126,11 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
           <ui.Button
             variant="neutral"
             icon="refresh"
-            busy={props.state.loading() || props.state.modelsLoading()}
+            busy={
+              props.state.loading() ||
+              props.state.modelsLoading() ||
+              props.state.consoleModelsLoading()
+            }
             onClick={() => {
               void props.state.refresh({ force: true })
               void props.state.refreshModels({ force: true })
@@ -146,6 +161,35 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
 
         <Show when={notice()}>
           {(notice) => <InlineNotice copy={notice()} run={run} />}
+        </Show>
+
+        <Show when={consoleError()}>
+          {(message) => (
+            <div
+              style={{
+                display: "flex",
+                "justify-content": "space-between",
+                "align-items": "center",
+                gap: "12px",
+                padding: "8px 10px",
+                "border-radius": "6px",
+                background: "var(--v2-background-bg-layer-01)",
+                color: "var(--v2-state-fg-warning)",
+                "font-size": "11px",
+              }}
+            >
+              <span>
+                Console model data unavailable: {message()}. Showing local session data.
+              </span>
+              <ui.Button
+                variant="ghost"
+                size="small"
+                onClick={() => void props.state.refreshModels({ force: true })}
+              >
+                Retry
+              </ui.Button>
+            </div>
+          )}
         </Show>
 
         <Show
@@ -268,7 +312,14 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
           )}
         </Show>
 
-        <ModelBreakdown state={props.state} ctx={props.ctx} ui={ui} />
+        <Show
+          when={consoleReady()}
+          fallback={<ModelBreakdown state={props.state} ctx={props.ctx} ui={ui} />}
+        >
+          <ConsoleBreakdown state={props.state} ctx={props.ctx} />
+        </Show>
+
+        <UsageInfo ctx={props.ctx} />
       </div>
     </div>
   )

@@ -42,7 +42,7 @@ The app already ships a Usage page, but it reads `/api/experimental/usage/limits
 1. The signed-in Console workspace through the app's `GET /api/experimental/usage/limits` endpoint. It returns the workspace (`id`, `name`, `usageURL`) and the same `go` meters.
 2. The Go API key endpoint `GET https://opencode.ai/zen/go/v1/usage` when Console is not connected.
 
-The Console endpoint does not expose per-model activity; the model breakdown is local session stats. The **View in Console** action opens the workspace `usageURL`.
+The Console endpoint does not expose per-model activity, but the signed-in Console workspace does through `GET /console/api/usage/models?range=30d&pageSize=100`. The plugin reads that endpoint from the main process using the stored Console OAuth credential and `x-org-id`. The response supplies per-model requests, tokens, and list cost for the last 30 days. The **View in Console** action opens the workspace `usageURL`.
 
 The Go usage endpoint uses `Authorization: Bearer <key>`. Response:
   ```json
@@ -213,26 +213,34 @@ Updated 2:32 PM                          See all →
 
 ### Model breakdown
 
-The settings page also shows a per-model analytics card. The Go usage endpoint only exposes aggregate meters, so this card uses the local OpenCode server's session statistics (`/api/experimental/session/stats`, `tools=none`) for three ranges:
-
-- monthly: `resetsAt - 1 month` to now
-- weekly: last 7 days
-- rolling: last 5 hours
-
-The stats are filtered to `providerID = "opencode-go"`, merged across model variants, and converted with the published Go monthly allowance table:
+The settings page shows a per-model analytics card. When Console is connected, the card uses Console activity for the last 30 days:
 
 ```text
-model monthly % = model spend this period     ÷ monthly allowance
-model 5-hour %  = model spend in the last 5h  ÷ (20% of the monthly allowance)
-model weekly %  = model spend in the last 7d  ÷ (50% of the monthly allowance)
+GET https://opencode.ai/console/api/usage/models?range=30d&pageSize=100
+Authorization: Bearer <Console OAuth token>
+x-org-id: <workspace id>
+```
+
+The main process selects the active `opencode` OAuth credential from `/api/credential`. The card shows each Go model's Console cost, monthly limit, contribution, requests, and tokens, then:
+
+- **Calculated monthly** = `Σ (Console model cost ÷ model monthly limit)`
+- **Server monthly** = `windows.monthly.percent`
+- **Difference** = server monthly minus calculated monthly, shown explicitly
+
+The formula is:
+
+```text
+model monthly % = Console model cost            ÷ model monthly limit
+model 5-hour %  = cost in the current 5h window ÷ (20% of the monthly limit)
+model weekly %  = cost in the current UTC week  ÷ (50% of the monthly limit)
 total monthly % = Σ model monthly %
 ```
 
-The card shows model name, local spend, token count, monthly allowance, monthly/weekly/5-hour share, a monthly bar, and a **Local pooled total** row that sums the model percentages. The server meters are the account total and may include other clients or machines; the card must show both rather than infer an allowance that forces them to match.
+The `$60` Go pool cancels out: `allowance = cost × (60 ÷ model limit)`, so `Σ allowance ÷ 60` is the same as `Σ cost ÷ model limit`. The 5-hour window starts at the first request after reset; the weekly window is the UTC calendar week.
 
-Allowances are pooled in percentage terms: a model at 50% of its allowance plus another model at 50% of its allowance is 100% of the monthly pool. The card must explain this sum, not treat the model percentages as independent limits.
+Console cost includes peak pricing: 2× on weekdays 01:00–04:00 and 06:00–10:00 UTC. The Console Activity table does not split peak and off-peak; the card links to the public pricing table.
 
-Defaults are DeepSeek V4.1 Flash $100 and DeepSeek V4 Pro $20, matching the workspace. The public Go table is linked and currently lists V4 Pro at $15. The plugin option `allowances` is a `Record<modelID, number>` override for workspaces with different limits. The data source is local session statistics: model IDs, costs, and token counts only, never prompts or message content.
+Defaults are DeepSeek V4.1 Flash $100 and DeepSeek V4 Pro $15, matching the public Go table. The plugin option `allowances` is a `Record<modelID, number>` override. The card never infers an allowance to force the server meter to match. If Console is not connected, it falls back to local OpenCode server session stats (`/api/experimental/session/stats`, `tools=none`) and labels the source as local. The local fallback reads model IDs, costs, and token counts only, never prompts or message content.
 
 ### States
 

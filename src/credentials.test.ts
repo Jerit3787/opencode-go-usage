@@ -1,5 +1,9 @@
 import { expect, it } from "vitest"
-import { readAuthFile, selectGoCredential } from "./credentials"
+import {
+  readAuthFile,
+  selectConsoleCredential,
+  selectGoCredential,
+} from "./credentials"
 
 const key = (id: string, active = true) => ({
   id,
@@ -37,6 +41,55 @@ it("reports Console-only and none", () => {
     ]),
   ).toEqual({ kind: "console-only", credentialID: "c" })
   expect(selectGoCredential([{ ...key("a"), integrationID: "other" }])).toEqual({ kind: "none" })
+})
+
+it("selects the active Console OAuth credential", () => {
+  expect(
+    selectConsoleCredential([
+      {
+        id: "console",
+        integrationID: "opencode",
+        label: "Personal",
+        active: true,
+        value: {
+          type: "oauth",
+          access: "console-access",
+          metadata: {
+            server: "https://opencode.ai/console",
+            orgID: "org_1",
+            orgName: "Personal",
+          },
+        },
+      },
+      {
+        id: "other",
+        integrationID: "opencode",
+        active: false,
+        value: {
+          type: "oauth",
+          access: "inactive",
+          metadata: { orgID: "org_2" },
+        },
+      },
+    ]),
+  ).toEqual({
+    access: "console-access",
+    orgID: "org_1",
+    server: "https://opencode.ai/console",
+    orgName: "Personal",
+    credentialID: "console",
+  })
+  expect(selectConsoleCredential([])).toBeUndefined()
+  expect(
+    selectConsoleCredential([
+      {
+        id: "console",
+        integrationID: "opencode",
+        active: true,
+        value: { type: "oauth", access: "x", metadata: {} },
+      },
+    ]),
+  ).toBeUndefined()
 })
 
 it("reads the auth.json fallback", () => {

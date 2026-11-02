@@ -4,20 +4,28 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 import type { Plugin } from "@opencode/plugin/gui"
 import { UsageIpc } from "./contract"
-import { readAuthFile, selectGoCredential, type CredentialChoice } from "./credentials"
+import {
+  readAuthFile,
+  selectConsoleCredential,
+  selectGoCredential,
+  type CredentialChoice,
+} from "./credentials"
 import { requestUsage } from "./request"
 import {
   cacheKey,
   cacheTtl,
   dataOf,
+  parseConsoleModels,
   parseUsageLimits,
   pruneOldest,
   withStaleData,
+  type ConsoleModelResult,
   type UsageData,
   type UsageResult,
 } from "./usage"
 
 const FETCH_TIMEOUT_MS = 10_000
+const MODEL_CACHE_TTL_MS = 45_000
 const MAX_ENTRIES = 32
 
 function authFilePath(): string | undefined {
@@ -30,11 +38,17 @@ function hashKey(key: string): string {
   return createHash("sha256").update(key).digest("hex").slice(0, 16)
 }
 
+type ServerEndpoint = {
+  url: string
+  headers: Readonly<Record<string, string>>
+}
+
 export const main: Plugin.MainSetup = (ctx) => {
   const cache = new Map<string, { at: number; result: UsageResult; lastGood?: UsageData }>()
   const lastGoodByServer = new Map<string, UsageData>()
   const inFlight = new Map<string, Promise<UsageResult>>()
   const loggedState = new Map<string, string>()
+  const consoleModelCache = new Map<string, { at: number; result: ConsoleModelResult }>()
 
   const keepLastGood = (serverID: string, result: UsageResult): UsageResult =>
     withStaleData(result, lastGoodByServer.get(serverID))
@@ -63,10 +77,7 @@ export const main: Plugin.MainSetup = (ctx) => {
     }
   }
 
-  const fetchConsoleLimits = async (endpoint: {
-    url: string
-    headers: Readonly<Record<string, string>>
-  }): Promise<UsageData | null> => {
+  const fetchConsoleLimits = async (endpoint: ServerEndpoint): Promise<UsageData | null> => {
     try {
       const response = await fetch(new URL("/api/experimental/usage/limits", endpoint.url), {
         headers: endpoint.headers,
@@ -76,6 +87,75 @@ export const main: Plugin.MainSetup = (ctx) => {
       return parseUsageLimits(await response.json(), Date.now())
     } catch {
       return null
+    }
+  }
+
+  const readCredentialEntries = async (endpoint: ServerEndpoint): Promise<unknown[] | null> => {
+    try {
+      const response = await fetch(new URL("/api/credential", endpoint.url), {
+        headers: endpoint.headers,
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      })
+      if (!response.ok) return null
+      const body = (await response.json()) as { data?: unknown }
+      return Array.isArray(body.data) ? body.data : null
+    } catch {
+      return null
+    }
+  }
+
+  const fetchConsoleModels = async (
+    endpoint: ServerEndpoint,
+  ): Promise<ConsoleModelResult> => {
+    const entries = await readCredentialEntries(endpoint)
+    if (!entries) {
+      return {
+        state: "error",
+        message: "Couldn't read the signed-in Console connection.",
+      }
+    }
+
+    const console = selectConsoleCredential(entries)
+    if (!console) {
+      return {
+        state: "error",
+        message: "Sign in to OpenCode Console to load per-model Console costs.",
+      }
+    }
+
+    try {
+      const base = console.server.replace(/\/+$/, "")
+      const response = await fetch(`${base}/api/usage/models?range=30d&pageSize=100`, {
+        headers: {
+          Authorization: `Bearer ${console.access}`,
+          "x-org-id": console.orgID,
+          Accept: "application/json",
+          "User-Agent": "opencode-go-usage/0.1.0",
+        },
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      })
+      if (!response.ok) {
+        return {
+          state: "error",
+          message: `Console model usage is unavailable (HTTP ${response.status}).`,
+        }
+      }
+
+      const models = parseConsoleModels(await response.json())
+      if (models.length === 0) {
+        return {
+          state: "error",
+          message: "Console returned no OpenCode Go model usage.",
+        }
+      }
+
+      const totalCost = models.reduce((total, model) => total + model.cost, 0)
+      return { state: "ok", data: { models, range: "30d", totalCost } }
+    } catch {
+      return {
+        state: "error",
+        message: "Console model usage couldn't be loaded.",
+      }
     }
   }
 
@@ -207,6 +287,34 @@ export const main: Plugin.MainSetup = (ctx) => {
       inFlight.set(key, request)
       void request.finally(() => inFlight.delete(key))
       return respond(await request)
+    },
+
+    async consoleModels(input): Promise<ConsoleModelResult> {
+      const serverID = input.server ?? "sidecar"
+      const endpoint = ctx.serverEndpoints.get(serverID)
+      if (!endpoint) {
+        return {
+          state: "error",
+          message: "The OpenCode server isn't ready.",
+        }
+      }
+
+      const cached = consoleModelCache.get(serverID)
+      if (!input.force && cached && Date.now() - cached.at < MODEL_CACHE_TTL_MS) {
+        return cached.result
+      }
+
+      const result = await fetchConsoleModels(endpoint)
+      if (result.state === "ok") {
+        consoleModelCache.set(serverID, { at: Date.now(), result })
+        pruneOldest(consoleModelCache, MAX_ENTRIES)
+      } else {
+        ctx.log.write("warn", "opencode-go console models unavailable", {
+          server: serverID,
+          message: result.message,
+        })
+      }
+      return result
     },
   })
 }

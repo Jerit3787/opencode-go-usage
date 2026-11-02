@@ -15,6 +15,7 @@ import {
   modelAllowance,
   modelDisplayName,
   noticeFor,
+  parseConsoleModels,
   parseStatsModels,
   parseUsageLimits,
   parseUsageResponse,
@@ -275,7 +276,7 @@ it("calculates per-model window percentages and allowances", () => {
   expect(windowPercent(50, 100, "monthly")).toBe(50)
   expect(windowPercent(50, undefined, "monthly")).toBeUndefined()
   expect(modelAllowance("deepseek-v4.1-flash")).toBe(100)
-  expect(modelAllowance("deepseek-v4-pro")).toBe(20)
+  expect(modelAllowance("deepseek-v4-pro")).toBe(15)
   expect(modelAllowance("deepseek-v4.1-flash", { "deepseek-v4.1-flash": 16 })).toBe(16)
   expect(modelAllowance("unknown")).toBeUndefined()
   expect(modelDisplayName("deepseek-v4-pro")).toBe("DeepSeek V4 Pro")
@@ -286,6 +287,57 @@ it("calculates per-model window percentages and allowances", () => {
   expect(formatUSD(0.0016)).toBe("$0.0016")
   expect(formatPercent1(12.58)).toBe("12.6%")
   expect(formatTokens(1_200_000)).toBe("1.2M")
+})
+
+it("parses Console per-model costs and token totals", () => {
+  const models = parseConsoleModels({
+    items: [
+      {
+        provider: "opencode-go",
+        model: "deepseek-v4.1-flash",
+        totalCostMicroCents: "3163470740",
+        totalRequests: "7610",
+        totalInputTokens: "68789760",
+        totalOutputTokens: "7430716",
+        totalCacheReadTokens: "2991292170",
+        totalCacheWrite5mTokens: "0",
+        totalCacheWrite1hTokens: "0",
+      },
+      {
+        provider: "opencode-go",
+        model: "deepseek-v4-pro",
+        totalCostMicroCents: "742366702",
+        totalRequests: "686",
+        totalInputTokens: "2946923",
+        totalOutputTokens: "530766",
+        totalCacheReadTokens: "139498752",
+      },
+      {
+        provider: "opencode",
+        model: "deepseek-v4.1-flash-free",
+        totalCostMicroCents: "0",
+        totalRequests: "545",
+      },
+      null,
+    ],
+  })
+
+  expect(models).toHaveLength(2)
+  expect(models[0]).toMatchObject({
+    providerID: "opencode-go",
+    modelID: "deepseek-v4.1-flash",
+    name: "DeepSeek V4.1 Flash",
+    cost: 31.6347074,
+    requests: 7610,
+    tokens: 3067512646,
+  })
+  expect(models[1]).toMatchObject({
+    modelID: "deepseek-v4-pro",
+    cost: 7.42366702,
+    requests: 686,
+    tokens: 142976441,
+  })
+  expect(parseConsoleModels({ items: "not-an-array" })).toEqual([])
 })
 
 it("sums per-model percentages into the pooled monthly total", () => {
@@ -303,9 +355,9 @@ it("sums per-model percentages into the pooled monthly total", () => {
       providerID: "opencode-go",
       modelID: "deepseek-v4-pro",
       name: "DeepSeek V4 Pro",
-      monthlyCost: 10,
-      weeklyCost: 5,
-      rollingCost: 2,
+      monthlyCost: 7.5,
+      weeklyCost: 3.75,
+      rollingCost: 1.5,
       monthlyTokens: 0,
     },
   ]
@@ -315,7 +367,7 @@ it("sums per-model percentages into the pooled monthly total", () => {
   expect(
     totalModelPercent(
       models,
-      { "deepseek-v4.1-flash": 200, "deepseek-v4-pro": 20 },
+      { "deepseek-v4.1-flash": 200, "deepseek-v4-pro": 15 },
       "monthly",
     ),
   ).toBe(75)
