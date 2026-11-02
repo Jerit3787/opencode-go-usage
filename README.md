@@ -39,7 +39,7 @@ If the active server is remote (for example, an OpenCode instance reached over S
 
 ## Model breakdown
 
-When Console is connected, the card uses Console activity for the **last 30 days**. It shows each Go model's Console cost, monthly limit, contribution, requests, and tokens, then:
+When Console is connected, the card uses Console activity for the **last 30 days**. It shows each Go model's Console cost, monthly limit, contribution, requests, tokens, average cost per 1M tokens, and average cost per request, then:
 
 - **Calculated monthly** — the sum of `model cost ÷ model monthly limit`
 - **Server monthly** — the meter returned by the Go usage endpoint

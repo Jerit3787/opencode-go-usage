@@ -9,6 +9,7 @@ import {
   formatPercent1,
   formatReset,
   formatTokens,
+  formatUnitUSD,
   formatUSD,
   formatUpdated,
   mergeModelUsage,
@@ -285,6 +286,10 @@ it("calculates per-model window percentages and allowances", () => {
   expect(subtractMonth(Date.UTC(2026, 2, 31))).toBe(Date.UTC(2026, 1, 28))
   expect(formatUSD(12.587)).toBe("$12.59")
   expect(formatUSD(0.0016)).toBe("$0.0016")
+  expect(formatUnitUSD(0.01279)).toBe("$0.01279")
+  expect(formatUnitUSD(0.0000536)).toBe("$0.000054")
+  expect(formatUnitUSD(107.85)).toBe("$107.85")
+  expect(formatUnitUSD(0)).toBe("$0.00")
   expect(formatPercent1(12.58)).toBe("12.6%")
   expect(formatTokens(1_200_000)).toBe("1.2M")
 })

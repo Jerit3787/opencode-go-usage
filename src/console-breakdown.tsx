@@ -7,6 +7,7 @@ import {
   dataOf,
   formatPercent1,
   formatTokens,
+  formatUnitUSD,
   formatUSD,
   modelAllowance,
   usageColor,
@@ -39,6 +40,14 @@ function ConsoleRow(props: { row: Row }) {
   const width = () => `${clampPercent(percent() ?? 0)}%`
   const percentColor = () =>
     percent() === undefined ? "var(--v2-text-text-muted)" : usageColor(usageTone(percent()!, false))
+  const perMillion = () =>
+    props.row.model.tokens > 0
+      ? (props.row.model.cost / props.row.model.tokens) * 1_000_000
+      : undefined
+  const perRequest = () =>
+    props.row.model.requests > 0
+      ? props.row.model.cost / props.row.model.requests
+      : undefined
 
   return (
     <div style={rowStyle}>
@@ -123,6 +132,12 @@ function ConsoleRow(props: { row: Row }) {
       >
         <span>{formatTokens(props.row.model.tokens)} tokens</span>
         <span>{props.row.model.requests.toLocaleString("en-US")} requests</span>
+        <Show when={perMillion() !== undefined}>
+          <span>avg {formatUnitUSD(perMillion()!)} / 1M tokens</span>
+        </Show>
+        <Show when={perRequest() !== undefined}>
+          <span>avg {formatUnitUSD(perRequest()!)} / request</span>
+        </Show>
         <Show when={props.row.limit === undefined}>
           <span>excluded from total</span>
         </Show>

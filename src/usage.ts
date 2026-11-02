@@ -631,6 +631,16 @@ export function formatUSD(value: number): string {
   }).format(value)
 }
 
+export function formatUnitUSD(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return "$0.00"
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 6,
+  }).format(value)
+}
+
 export function formatPercent1(value: number): string {
   return `${value.toFixed(1)}%`
 }
