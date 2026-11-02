@@ -1,21 +1,6 @@
 import { Show } from "solid-js"
 import type { Ui } from "@opencode/plugin/gui"
-import type { StatusCopy } from "./usage"
-
-function actionLabel(action: StatusCopy["action"]): string {
-  switch (action) {
-    case "connect":
-      return "Connect OpenCode Go"
-    case "usage":
-      return "Open built-in Usage"
-    case "console":
-      return "Open Console"
-    case "retry":
-      return "Retry"
-    case "none":
-      return ""
-  }
-}
+import { actionLabel, type StatusCopy } from "./usage"
 
 export function StatusBlock(props: {
   copy: StatusCopy
@@ -75,5 +60,43 @@ export function StatusBlock(props: {
         </Show>
       </div>
     </Show>
+  )
+}
+
+export function InlineNotice(props: { copy: StatusCopy; run(): void }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        "justify-content": "space-between",
+        "align-items": "center",
+        gap: "8px",
+        padding: "6px 8px",
+        "border-radius": "6px",
+        background: "var(--v2-background-bg-layer-01)",
+        color: "var(--v2-state-fg-warning)",
+        "font-size": "11px",
+      }}
+    >
+      <span>{props.copy.title}</span>
+      <Show when={props.copy.action !== "none"}>
+        <button
+          type="button"
+          onClick={props.run}
+          style={{
+            border: "none",
+            background: "transparent",
+            color: "var(--v2-text-text-accent)",
+            "font-size": "11px",
+            "font-weight": 530,
+            padding: 0,
+            cursor: "pointer",
+            "white-space": "nowrap",
+          }}
+        >
+          {actionLabel(props.copy.action)}
+        </button>
+      </Show>
+    </div>
   )
 }

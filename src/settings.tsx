@@ -2,12 +2,13 @@ import { Show } from "solid-js"
 import type { Context } from "@opencode/plugin/gui"
 import { MeterRow } from "./meter"
 import { Ring } from "./ring"
-import { StatusBlock } from "./status"
+import { InlineNotice, StatusBlock } from "./status"
 import type { UsageState } from "./state"
 import {
   dataOf,
   formatPercent,
   formatUpdated,
+  noticeFor,
   statusCopy,
   tightestWindow,
   usageColor,
@@ -18,6 +19,7 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
   const ui = props.ctx.ui
   const data = () => dataOf(props.state.result())
   const copy = () => statusCopy(props.state.result())
+  const notice = () => noticeFor(props.state.result())
 
   const tightest = () => {
     const current = data()
@@ -120,6 +122,10 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
       >
         {(current) => (
           <div style={{ display: "grid", gap: "16px" }}>
+            <Show when={notice()}>
+              {(notice) => <InlineNotice copy={notice()} run={run} />}
+            </Show>
+
             <Show when={current().stale}>
               <div
                 style={{

@@ -1,9 +1,9 @@
 import { onMount, Show } from "solid-js"
 import type { Context } from "@opencode/plugin/gui"
 import { MeterRow } from "./meter"
-import { StatusBlock } from "./status"
+import { InlineNotice, StatusBlock } from "./status"
 import type { UsageState } from "./state"
-import { dataOf, formatUpdated, statusCopy } from "./usage"
+import { dataOf, formatUpdated, noticeFor, statusCopy } from "./usage"
 
 export function UsageCard(props: {
   state: UsageState
@@ -20,6 +20,7 @@ export function UsageCard(props: {
 
   const data = () => dataOf(props.state.result())
   const copy = () => statusCopy(props.state.result())
+  const notice = () => noticeFor(props.state.result())
 
   const run = () => {
     switch (copy().action) {
@@ -50,6 +51,9 @@ export function UsageCard(props: {
       >
         {(data) => (
           <div style={{ display: "grid", gap: "12px" }}>
+            <Show when={notice()}>
+              {(notice) => <InlineNotice copy={notice()} run={run} />}
+            </Show>
             <MeterRow label="5-hour limit" window={data().windows.rolling} now={Date.now()} />
             <MeterRow
               label="Weekly · all models"

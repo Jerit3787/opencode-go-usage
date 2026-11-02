@@ -241,6 +241,26 @@ export function cacheTtl(result: UsageResult): number {
   return result.state === "ok" ? 60_000 : 45_000
 }
 
+export function actionLabel(action: StatusCopy["action"]): string {
+  switch (action) {
+    case "connect":
+      return "Connect OpenCode Go"
+    case "usage":
+      return "Open built-in Usage"
+    case "console":
+      return "Open Console"
+    case "retry":
+      return "Retry"
+    case "none":
+      return ""
+  }
+}
+
+export function noticeFor(result: UsageResult | undefined): StatusCopy | undefined {
+  if (!result || result.state === "ok") return undefined
+  return statusCopy(result)
+}
+
 export function statusCopy(result: UsageResult | undefined): StatusCopy {
   if (!result) {
     return {

@@ -1,5 +1,6 @@
 import { expect, it } from "vitest"
 import {
+  actionLabel,
   cacheKey,
   cacheTtl,
   clampPercent,
@@ -7,6 +8,7 @@ import {
   formatPercent,
   formatReset,
   formatUpdated,
+  noticeFor,
   parseUsageResponse,
   pillView,
   statusCopy,
@@ -138,9 +140,38 @@ it("maps status copy and cache values", () => {
   expect(statusCopy({ state: "no-plan", message: "no" }).action).toBe("console")
   expect(statusCopy({ state: "unavailable", message: "no" }).action).toBe("retry")
   expect(statusCopy({ state: "error", message: "no" }).action).toBe("retry")
+  expect(statusCopy({ state: "rejected", message: "no" }).action).toBe("connect")
   expect(cacheKey(undefined, "cred_1")).toBe("sidecar:cred_1")
   expect(cacheKey("remote", "cred_1")).toBe("remote:cred_1")
   expect(cacheTtl({ state: "ok", data: parseUsageResponse(body, NOW)! })).toBe(60_000)
   expect(cacheTtl({ state: "error", message: "no" })).toBe(45_000)
   expect(formatPercent(27.6)).toBe("28%")
+})
+
+it("maps state actions and notices, including stale data", () => {
+  const data = parseUsageResponse(body, NOW)!
+  expect(actionLabel("connect")).toBe("Connect OpenCode Go")
+  expect(actionLabel("usage")).toBe("Open built-in Usage")
+  expect(actionLabel("console")).toBe("Open Console")
+  expect(actionLabel("retry")).toBe("Retry")
+  expect(actionLabel("none")).toBe("")
+  expect(noticeFor({ state: "ok", data })).toBeUndefined()
+  expect(noticeFor({ state: "error", message: "no", data })?.title).toBe(
+    "Usage couldn't be loaded",
+  )
+  expect(noticeFor({ state: "signed-out" })?.action).toBe("connect")
+  expect(noticeFor({ state: "console-only" })?.action).toBe("usage")
+  expect(noticeFor({ state: "no-plan", message: "no", data })?.action).toBe("console")
+  expect(noticeFor({ state: "unavailable", message: "no", data })?.action).toBe("retry")
+  expect(pillView({ state: "console-only" })).toEqual({ label: "Go usage", tone: undefined })
+  expect(pillView({ state: "no-plan", message: "no" })).toEqual({
+    label: "Go usage",
+    tone: undefined,
+  })
+  expect(pillView({ state: "unavailable", message: "no" })).toEqual({
+    label: "Go usage",
+    tone: "warning",
+  })
+  const stale = withStaleData({ state: "error", message: "offline" }, data)
+  expect(pillView(stale)).toEqual({ label: "mo 78%", tone: "warning" })
 })
