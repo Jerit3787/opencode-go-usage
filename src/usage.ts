@@ -75,7 +75,7 @@ export const GO_MONTHLY_ALLOWANCES: Record<string, number> = {
   "qwen3.8-flash": 30,
   "qwen3.7-plus": 60,
   "deepseek-v4.1-flash": 100,
-  "deepseek-v4-pro": 16,
+  "deepseek-v4-pro": 20,
   "hy4-preview": 30,
   "hy3": 60,
   "grok-4.7": 15,

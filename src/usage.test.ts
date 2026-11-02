@@ -267,9 +267,9 @@ it("sums per-model percentages into the pooled monthly total", () => {
       providerID: "opencode-go",
       modelID: "deepseek-v4-pro",
       name: "DeepSeek V4 Pro",
-      monthlyCost: 8,
-      weeklyCost: 4,
-      rollingCost: 1.6,
+      monthlyCost: 10,
+      weeklyCost: 5,
+      rollingCost: 2,
       monthlyTokens: 0,
     },
   ]

@@ -16,7 +16,19 @@ import {
   type ModelUsage,
 } from "./usage"
 
-function ModelRow(props: { model: ModelUsage; allowance: number | undefined }) {
+const MODEL_COLORS = [
+  "var(--v2-text-text-accent)",
+  "var(--v2-state-fg-warning)",
+  "var(--v2-state-fg-success, #2e9e5b)",
+  "var(--v2-state-fg-danger)",
+  "var(--v2-text-text-base)",
+]
+
+function ModelRow(props: {
+  model: ModelUsage
+  allowance: number | undefined
+  color: string
+}) {
   const monthlyPct = () =>
     windowPercent(props.model.monthlyCost, props.allowance, "monthly")
   const weeklyPct = () => windowPercent(props.model.weeklyCost, props.allowance, "weekly")
@@ -41,11 +53,24 @@ function ModelRow(props: { model: ModelUsage; allowance: number | undefined }) {
         <div style={{ display: "grid", gap: "3px", "min-width": 0 }}>
           <span
             style={{
+              display: "inline-flex",
+              "align-items": "center",
+              gap: "7px",
               "font-size": "13px",
               "font-weight": 530,
               color: "var(--v2-text-text-base)",
+              "min-width": 0,
             }}
           >
+            <span
+              style={{
+                width: "8px",
+                height: "8px",
+                "border-radius": "50%",
+                background: props.color,
+                flex: "none",
+              }}
+            />
             {props.model.name}
           </span>
           <span style={{ "font-size": "11px", color: "var(--v2-text-text-muted)" }}>
@@ -58,7 +83,7 @@ function ModelRow(props: { model: ModelUsage; allowance: number | undefined }) {
             {monthlyPct() !== undefined ? formatPercent1(monthlyPct()!) : "—"}
           </span>
           <span style={{ "font-size": "11px", color: "var(--v2-text-text-muted)" }}>
-            of monthly
+            contribution
           </span>
         </div>
       </div>
@@ -77,7 +102,7 @@ function ModelRow(props: { model: ModelUsage; allowance: number | undefined }) {
             style={{
               width: width(),
               height: "100%",
-              background: color(),
+              background: props.color,
               "border-radius": "999px",
             }}
           />
@@ -129,6 +154,14 @@ export function ModelBreakdown(props: { state: UsageState; ctx: Context; ui: Ui 
   const totalWeekly = () => totalModelPercent(models(), overrides(), "weekly")
   const totalRolling = () => totalModelPercent(models(), overrides(), "rolling")
   const totalTone = () => usageTone(totalMonthly(), false)
+  const contributions = () =>
+    models().map((model, index) => ({
+      model,
+      percent:
+        windowPercent(model.monthlyCost, modelAllowance(model.modelID, overrides()), "monthly") ??
+        0,
+      color: MODEL_COLORS[index % MODEL_COLORS.length],
+    }))
   const modelError = () => {
     const result = props.state.models()
     return result?.state === "error" ? result.message : undefined
@@ -201,10 +234,11 @@ export function ModelBreakdown(props: { state: UsageState; ctx: Context; ui: Ui 
         }
       >
         <For each={models()}>
-          {(model) => (
+          {(model, index) => (
             <ModelRow
               model={model}
               allowance={modelAllowance(model.modelID, overrides())}
+              color={MODEL_COLORS[index() % MODEL_COLORS.length]}
             />
           )}
         </For>
@@ -226,10 +260,10 @@ export function ModelBreakdown(props: { state: UsageState; ctx: Context; ui: Ui 
                   color: "var(--v2-text-text-base)",
                 }}
               >
-                Local total
+                Pooled total
               </span>
               <span style={{ "font-size": "11px", color: "var(--v2-text-text-muted)" }}>
-                {formatUSD(total())} local
+                {formatUSD(total())} local · sum of model contributions
               </span>
             </div>
             <div style={{ display: "grid", gap: "3px", "text-align": "right" }}>
@@ -257,12 +291,27 @@ export function ModelBreakdown(props: { state: UsageState; ctx: Context; ui: Ui 
           >
             <div
               style={{
+                display: "flex",
                 width: `${clampPercent(totalMonthly())}%`,
                 height: "100%",
-                background: usageColor(totalTone()),
-                "border-radius": "999px",
               }}
-            />
+            >
+              <For each={contributions()}>
+                {(contribution) => (
+                  <div
+                    style={{
+                      width: `${
+                        totalMonthly() > 0
+                          ? (contribution.percent / totalMonthly()) * 100
+                          : 0
+                      }%`,
+                      height: "100%",
+                      background: contribution.color,
+                    }}
+                  />
+                )}
+              </For>
+            </div>
           </div>
           <div
             style={{
@@ -275,7 +324,7 @@ export function ModelBreakdown(props: { state: UsageState; ctx: Context; ui: Ui 
           >
             <span>5h {formatPercent1(totalRolling())}</span>
             <span>wk {formatPercent1(totalWeekly())}</span>
-            <span>Pooled monthly percentage</span>
+            <span>Pooled monthly</span>
           </div>
         </div>
       </Show>

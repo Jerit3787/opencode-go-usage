@@ -221,7 +221,7 @@ model weekly %  = model spend in the last 7d  ÷ (50% of the monthly allowance)
 total monthly % = Σ model monthly %
 ```
 
-The card shows model name, local spend, token count, monthly allowance, monthly/weekly/5-hour share, a monthly bar, and a **Local total** row that sums the model percentages. The server meters are the account total and may include other clients or machines.
+The card shows model name, local spend, token count, monthly allowance, monthly/weekly/5-hour share, a monthly bar, and a **Pooled total** row that sums the model percentages. The server meters are the account total and may include other clients or machines.
 
 Allowances are pooled in percentage terms: a model at 50% of its allowance plus another model at 50% of its allowance is 100% of the monthly pool. The card must explain this sum, not treat the model percentages as independent limits.
 
