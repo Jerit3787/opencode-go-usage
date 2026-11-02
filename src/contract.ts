@@ -53,7 +53,3 @@ export const UsageIpc = Ipc.define({
   },
 })
 
-export type UsageInput = {
-  server?: string
-  force?: boolean
-}

@@ -6,6 +6,7 @@ import { dataOf, withStaleData, type UsageResult } from "./usage"
 export type UsageState = {
   result: () => UsageResult | undefined
   loading: () => boolean
+  initialLoading: () => boolean
   server: () => string | undefined
   refresh(opts?: { force?: boolean; server?: string }): Promise<void>
   openSettings(): void
@@ -17,6 +18,7 @@ export type UsageState = {
 export function createUsageState(ctx: Context): UsageState {
   const [rawResult, setResult] = createSignal<UsageResult>()
   const [resultServer, setResultServer] = createSignal<string>()
+  const [settledServer, setSettledServer] = createSignal<string>()
   const [loading, setLoading] = createSignal(false)
   const [server, setServer] = createSignal<string>()
   let generation = 0
@@ -42,12 +44,14 @@ export function createUsageState(ctx: Context): UsageState {
       if (request !== generation) return
 
       setResultServer(target)
+      setSettledServer(target)
       setResult(next)
     } catch {
       if (request !== generation) return
 
       const previous = resultServer() === target ? dataOf(rawResult()) : undefined
       setResultServer(target)
+      setSettledServer(target)
       setResult(
         withStaleData(
           { state: "error", message: "Usage couldn't be loaded." },
@@ -77,6 +81,7 @@ export function createUsageState(ctx: Context): UsageState {
   return {
     result: visible,
     loading,
+    initialLoading: () => loading() && settledServer() !== (server() ?? "sidecar"),
     server,
     refresh,
     openSettings: () => ctx.layout.settings("opencode-go-usage"),

@@ -1,4 +1,4 @@
-import { createMemo } from "solid-js"
+import { createMemo, Show } from "solid-js"
 import {
   clampPercent,
   formatPercent,
@@ -6,10 +6,12 @@ import {
   usageColor,
   usageTone,
   type UsageWindow,
+  type WindowKey,
 } from "./usage"
 
 export function MeterRow(props: {
   label: string
+  kind: WindowKey
   window: UsageWindow
   now: number
   size?: "small" | "large"
@@ -41,13 +43,24 @@ export function MeterRow(props: {
           }}
         >
           <span style={{ color: "var(--v2-text-text-muted)" }}>
-            {formatReset(props.window.resetsAt, props.now)}
+            {formatReset(props.window.resetsAt, props.now, { kind: props.kind })}
           </span>
           <strong style={{ color: color(), "font-weight": 600 }}>
             {formatPercent(props.window.percent)}
           </strong>
         </span>
       </div>
+      <Show when={props.window.limited}>
+        <div
+          style={{
+            color: "var(--v2-state-fg-danger)",
+            "font-size": "11px",
+            "font-weight": 530,
+          }}
+        >
+          Limit reached
+        </div>
+      </Show>
       <div
         style={{
           height,

@@ -65,6 +65,7 @@ it("ignores an older server response and hides another server's reading", async 
   await tick()
   expect(calls).toContain("a")
   expect(state.result()).toBeUndefined()
+  expect(state.initialLoading()).toBe(true)
 
   setCurrent({ server: { id: "b" } })
   await tick()
@@ -75,6 +76,7 @@ it("ignores an older server response and hides another server's reading", async 
   await tick()
   const afterB = state.result()
   expect(afterB?.state).toBe("ok")
+  expect(state.initialLoading()).toBe(false)
   if (afterB?.state === "ok") {
     expect(afterB.data.windows.rolling.percent).toBe(20)
   }
@@ -107,6 +109,7 @@ it("keeps the last reading when a refresh rejects", async () => {
 
   await tick()
   expect(state.result()?.state).toBe("ok")
+  expect(state.initialLoading()).toBe(false)
 
   fail = true
   await state.refresh({ server: "sidecar", force: true })

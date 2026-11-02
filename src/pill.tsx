@@ -1,9 +1,8 @@
 import type { ComposerPill, Context } from "@opencode/plugin/gui"
 import { UsageCard } from "./card"
 import type { UsageState } from "./state"
+import { USAGE_TITLE } from "./title"
 import { pillView } from "./usage"
-
-export const USAGE_TITLE = "Plan usage limits · Go"
 
 export function usagePill(ctx: Context, state: UsageState): ComposerPill {
   return {
@@ -21,7 +20,6 @@ export function usagePill(ctx: Context, state: UsageState): ComposerPill {
       <UsageCard
         state={state}
         ctx={ctx}
-        close={input.close}
         onSeeAll={() => {
           input.close()
           state.openSettings()

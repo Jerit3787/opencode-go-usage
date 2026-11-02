@@ -33,6 +33,7 @@ export type StatusCopy = {
 export type FormatOptions = {
   locale?: string
   timeZone?: string
+  kind?: WindowKey
 }
 
 const DEFAULT_LOCALE = "en-US"
@@ -151,6 +152,23 @@ function dayKey(ms: number, options: FormatOptions): string {
 export function formatReset(resetsAt: number, now: number, options: FormatOptions = {}): string {
   if (!Number.isFinite(resetsAt) || resetsAt <= 0) return "Reset time unavailable"
 
+  if (options.kind === "weekly") {
+    const weekday = new Intl.DateTimeFormat(options.locale ?? DEFAULT_LOCALE, {
+      timeZone: options.timeZone,
+      weekday: "short",
+    }).format(new Date(resetsAt))
+    return `Resets ${weekday} ${timeLabel(resetsAt, options)}`
+  }
+
+  if (options.kind === "monthly") {
+    const parts = new Intl.DateTimeFormat(options.locale ?? DEFAULT_LOCALE, {
+      timeZone: options.timeZone,
+      day: "numeric",
+      month: "short",
+    }).formatToParts(new Date(resetsAt))
+    return `Resets ${part(parts, "day")} ${part(parts, "month")} ${timeLabel(resetsAt, options)}`
+  }
+
   if (dayKey(resetsAt, options) === dayKey(now, options)) {
     return `Resets at ${timeLabel(resetsAt, options)}`
   }
@@ -241,6 +259,14 @@ export function cacheKey(server: string | undefined, credentialID: string): stri
 
 export function cacheTtl(_result: UsageResult): number {
   return 45_000
+}
+
+export function pruneOldest<K, V>(map: Map<K, V>, max: number): void {
+  while (map.size > max) {
+    const oldest = map.keys().next().value
+    if (oldest === undefined) return
+    map.delete(oldest)
+  }
 }
 
 export function ringOffset(percent: number, size: number, stroke: number): number {

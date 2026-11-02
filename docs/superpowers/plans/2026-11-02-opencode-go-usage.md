@@ -995,7 +995,7 @@ The whole-branch review found wrong-account and stale-state risks that the first
 - Stale readings are marked in the pill (`·`) and with a muted ring; `MeterRow` and `Ring` use reactive memos for tone, color, width, and arc.
 - Tests now cover remote fallback isolation, invalid credential data, auth-key cache invalidation, env-key resolution, in-flight coalescing, last-good retention, request timeouts, stale pill state, and out-of-order server responses (28 tests).
 
-Deferred minors from the review: same-day weekly/monthly reset copy, “Limit reached” row copy, loader flicker on background refresh, auth-file fallback on a valid empty credential response, cache-map housekeeping, sanitized diagnostics, and the hardcoded README install path.
+Deferred polish completed on 2026-11-02: same-day weekly/monthly reset copy (window kind), “Limit reached” row copy, initial-versus-background loading, auth-file fallback for empty and OAuth entries, cache pruning, shared title constant, explicit `effect` dependency, sanitized log diagnostics, and the portable README install path. Remaining manual visual checks: ring fallback after a host markup change, 320px popover, plugin toggle, stale-network, and server/account switch.
 
 ## Self-Review Notes
 

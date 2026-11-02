@@ -8,7 +8,6 @@ import { dataOf, formatUpdated, noticeFor, statusCopy } from "./usage"
 export function UsageCard(props: {
   state: UsageState
   ctx: Context
-  close(): void
   onSeeAll(): void
 }) {
   const ui = props.ctx.ui
@@ -48,7 +47,12 @@ export function UsageCard(props: {
       <Show
         when={data()}
         fallback={
-          <StatusBlock copy={copy()} run={run} loading={props.state.loading()} ui={ui} />
+          <StatusBlock
+            copy={copy()}
+            run={run}
+            loading={props.state.initialLoading()}
+            ui={ui}
+          />
         }
       >
         {(data) => (
@@ -56,13 +60,24 @@ export function UsageCard(props: {
             <Show when={notice()}>
               {(notice) => <InlineNotice copy={notice()} run={run} />}
             </Show>
-            <MeterRow label="5-hour limit" window={data().windows.rolling} now={Date.now()} />
             <MeterRow
+              kind="rolling"
+              label="5-hour limit"
+              window={data().windows.rolling}
+              now={Date.now()}
+            />
+            <MeterRow
+              kind="weekly"
               label="Weekly · all models"
               window={data().windows.weekly}
               now={Date.now()}
             />
-            <MeterRow label="Monthly" window={data().windows.monthly} now={Date.now()} />
+            <MeterRow
+              kind="monthly"
+              label="Monthly"
+              window={data().windows.monthly}
+              now={Date.now()}
+            />
             <div
               style={{
                 display: "flex",

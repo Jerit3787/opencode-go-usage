@@ -11,6 +11,7 @@ import {
   noticeFor,
   parseUsageResponse,
   pillView,
+  pruneOldest,
   ringOffset,
   statusCopy,
   tightestWindow,
@@ -100,6 +101,15 @@ it("formats reset times and updated times in UTC", () => {
   expect(formatReset(Date.UTC(2026, 10, 22, 4, 8), NOW, { timeZone: "UTC" })).toBe(
     "Resets 22 Nov 4:08 AM",
   )
+  expect(
+    formatReset(Date.UTC(2026, 10, 2, 18, 0), NOW, { timeZone: "UTC", kind: "weekly" }),
+  ).toBe("Resets Mon 6:00 PM")
+  expect(
+    formatReset(Date.UTC(2026, 10, 2, 18, 0), NOW, { timeZone: "UTC", kind: "monthly" }),
+  ).toBe("Resets 2 Nov 6:00 PM")
+  expect(
+    formatReset(Date.UTC(2026, 10, 2, 18, 40), NOW, { timeZone: "UTC", kind: "rolling" }),
+  ).toBe("Resets at 6:40 PM")
   expect(formatReset(0, NOW, { timeZone: "UTC" })).toBe("Reset time unavailable")
   expect(formatUpdated(NOW - 30_000, NOW, { timeZone: "UTC" })).toBe("Updated just now")
   expect(formatUpdated(NOW - 5 * 60_000, NOW, { timeZone: "UTC" })).toBe("Updated 5m ago")
@@ -158,6 +168,16 @@ it("maps status copy and cache values", () => {
   expect(cacheTtl({ state: "error", message: "no" })).toBe(45_000)
   expect(formatPercent(27.6)).toBe("28%")
   expect(ringOffset(50, 64, 6)).toBeCloseTo(29 * Math.PI)
+})
+
+it("prunes the oldest map entries", () => {
+  const map = new Map([
+    ["a", 1],
+    ["b", 2],
+    ["c", 3],
+  ])
+  pruneOldest(map, 2)
+  expect([...map.keys()]).toEqual(["b", "c"])
 })
 
 it("maps state actions and notices, including stale data", () => {

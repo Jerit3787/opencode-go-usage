@@ -1,10 +1,12 @@
+import { USAGE_TITLE } from "./title"
+
 export const usageStyles = `
 :root {
   --oc-go-usage-percent: 0;
   --oc-go-usage-color: var(--v2-text-text-muted);
 }
 
-[data-slot="session-plugin-pill"][aria-label="Plan usage limits · Go"]::before {
+[data-slot="session-plugin-pill"][aria-label=${JSON.stringify(USAGE_TITLE)}]::before {
   content: "";
   width: 14px;
   height: 14px;

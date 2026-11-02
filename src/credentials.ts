@@ -55,8 +55,17 @@ export function readAuthFile(body: unknown): CredentialChoice {
   if (!isRecord(body)) return { kind: "none" }
   const entry = body["opencode-go"]
   if (!isRecord(entry)) return { kind: "none" }
-  if (entry.type !== "key" || typeof entry.key !== "string" || entry.key.length === 0) {
+
+  if (entry.type === "key") {
+    if (typeof entry.key === "string" && entry.key.length > 0) {
+      return { kind: "key", key: entry.key, credentialID: "auth.json", source: "auth" }
+    }
     return { kind: "none" }
   }
-  return { kind: "key", key: entry.key, credentialID: "auth.json", source: "auth" }
+
+  if (typeof entry.type === "string") {
+    return { kind: "console-only", credentialID: "auth.json" }
+  }
+
+  return { kind: "none" }
 }

@@ -45,9 +45,12 @@ type Impl = { get(input: { server?: string; force?: boolean }): Promise<UsageRes
 const originalXdg = process.env.XDG_DATA_HOME
 const originalEnvKey = process.env.OPENCODE_GO_API_KEY
 const tempDirs: string[] = []
+let lastLog: ReturnType<typeof vi.fn> | undefined
 
 function setup() {
   let impl: Impl | undefined
+  const log = vi.fn()
+  lastLog = log
   const ctx = {
     serverEndpoints: {
       get: (id: string) =>
@@ -55,6 +58,7 @@ function setup() {
           ? { url: `http://${id}:1234`, headers: { Authorization: "Bearer server" } }
           : undefined,
     },
+    log: { write: log },
     provide: (_ipc: unknown, value: Impl) => {
       impl = value
     },
@@ -77,6 +81,7 @@ async function useAuthFile(contents?: object): Promise<string> {
 
 afterEach(async () => {
   vi.unstubAllGlobals()
+  lastLog = undefined
   if (originalXdg === undefined) delete process.env.XDG_DATA_HOME
   else process.env.XDG_DATA_HOME = originalXdg
   if (originalEnvKey === undefined) delete process.env.OPENCODE_GO_API_KEY
@@ -178,6 +183,49 @@ it("treats an invalid credential response as unavailable", async () => {
   expect(result.state).toBe("unavailable")
 })
 
+it("falls back to the auth file when the sidecar returns no Go credential", async () => {
+  await useAuthFile({ "opencode-go": { type: "key", key: "oc_sk_file" } })
+  const auths: string[] = []
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+      if (url.includes("/api/credential")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 })
+      }
+      if (url === USAGE_URL) {
+        auths.push((init?.headers as Record<string, string>).Authorization)
+        return new Response(JSON.stringify(okBody), { status: 200 })
+      }
+      throw new Error(`unexpected request ${url}`)
+    }),
+  )
+  const get = setup()
+  const result = await get.get({ server: "sidecar" })
+  expect(result.state).toBe("ok")
+  expect(auths).toEqual(["Bearer oc_sk_file"])
+})
+
+it("treats an auth-file OAuth entry as console-only", async () => {
+  await useAuthFile({ "opencode-go": { type: "oauth" } })
+  const calls: string[] = []
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string | URL | Request) => {
+      const url = String(input)
+      calls.push(url)
+      if (url.includes("/api/credential")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 })
+      }
+      throw new Error(`unexpected request ${url}`)
+    }),
+  )
+  const get = setup()
+  const result = await get.get({ server: "sidecar" })
+  expect(result.state).toBe("console-only")
+  expect(calls.filter((url) => url === USAGE_URL)).toHaveLength(0)
+})
+
 it("invalidates the auth-file cache when the key changes", async () => {
   const dir = await useAuthFile({ "opencode-go": { type: "key", key: "oc_sk_a" } })
   let usageCalls = 0
@@ -261,6 +309,29 @@ it("coalesces concurrent requests for the same credential", async () => {
   const [a, b] = await Promise.all([first, second])
   expect(a.state).toBe("ok")
   expect(b).toEqual(a)
+})
+
+it("logs a sanitized state change without the key", async () => {
+  await useAuthFile()
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string | URL | Request) => {
+      const url = String(input)
+      if (url.includes("/api/credential")) {
+        return new Response(JSON.stringify(credentialBody), { status: 200 })
+      }
+      if (url === USAGE_URL) return new Response("{}", { status: 401 })
+      throw new Error(`unexpected request ${url}`)
+    }),
+  )
+  const get = setup()
+  const result = await get.get({ server: "sidecar" })
+  expect(result.state).toBe("rejected")
+  expect(lastLog).toHaveBeenCalledWith("warn", "opencode-go usage unavailable", {
+    server: "sidecar",
+    state: "rejected",
+  })
+  expect(JSON.stringify(lastLog!.mock.calls)).not.toContain("oc_sk_test")
 })
 
 it("retains last good when the sidecar credential endpoint fails", async () => {

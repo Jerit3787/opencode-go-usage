@@ -47,4 +47,8 @@ it("reads the auth.json fallback", () => {
     source: "auth",
   })
   expect(readAuthFile({})).toEqual({ kind: "none" })
+  expect(readAuthFile({ "opencode-go": { type: "oauth" } })).toEqual({
+    kind: "console-only",
+    credentialID: "auth.json",
+  })
 })

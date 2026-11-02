@@ -46,9 +46,25 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
 
   const updated = () => {
     const current = data()
-    if (!current) return "Waiting for usage"
-    const label = formatUpdated(current.updatedAt, Date.now())
-    return current.stale ? `${label} · last reading` : label
+    if (current) {
+      const label = formatUpdated(current.updatedAt, Date.now())
+      return current.stale ? `${label} · last reading` : label
+    }
+
+    if (props.state.initialLoading()) return "Checking usage…"
+
+    switch (copy().action) {
+      case "connect":
+        return "Connection needed"
+      case "usage":
+        return "Console managed"
+      case "console":
+        return "No Go allowance"
+      case "retry":
+        return "Unavailable"
+      default:
+        return "Waiting for usage"
+    }
   }
 
   onMount(() => {
@@ -147,7 +163,7 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
                 <StatusBlock
                   copy={copy()}
                   run={run}
-                  loading={props.state.loading()}
+                  loading={props.state.initialLoading()}
                   ui={ui}
                 />
               </div>
@@ -212,6 +228,7 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
 
               <div style={rowStyle}>
                 <MeterRow
+                  kind="rolling"
                   size="large"
                   label="5-hour limit"
                   window={current().windows.rolling}
@@ -220,6 +237,7 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
               </div>
               <div style={rowStyle}>
                 <MeterRow
+                  kind="weekly"
                   size="large"
                   label="Weekly · all models"
                   window={current().windows.weekly}
@@ -228,6 +246,7 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
               </div>
               <div style={rowStyle}>
                 <MeterRow
+                  kind="monthly"
                   size="large"
                   label="Monthly"
                   window={current().windows.monthly}

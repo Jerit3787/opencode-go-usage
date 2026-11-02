@@ -10,12 +10,14 @@ import {
   cacheKey,
   cacheTtl,
   dataOf,
+  pruneOldest,
   withStaleData,
   type UsageData,
   type UsageResult,
 } from "./usage"
 
 const FETCH_TIMEOUT_MS = 10_000
+const MAX_ENTRIES = 32
 
 function authFilePath(): string | undefined {
   if (process.platform === "win32") return undefined
@@ -31,19 +33,51 @@ export const main: Plugin.MainSetup = (ctx) => {
   const cache = new Map<string, { at: number; result: UsageResult; lastGood?: UsageData }>()
   const lastGoodByServer = new Map<string, UsageData>()
   const inFlight = new Map<string, Promise<UsageResult>>()
+  const loggedState = new Map<string, string>()
 
   const keepLastGood = (serverID: string, result: UsageResult): UsageResult =>
     withStaleData(result, lastGoodByServer.get(serverID))
 
+  const logResult = (serverID: string, result: UsageResult): void => {
+    if (result.state === "ok") {
+      loggedState.delete(serverID)
+      return
+    }
+    if (loggedState.get(serverID) === result.state) return
+    loggedState.set(serverID, result.state)
+    pruneOldest(loggedState, MAX_ENTRIES)
+    ctx.log.write("warn", "opencode-go usage unavailable", {
+      server: serverID,
+      state: result.state,
+    })
+  }
+
+  const readAuthChoice = async (): Promise<CredentialChoice | undefined> => {
+    const file = authFilePath()
+    if (!file) return undefined
+    try {
+      return readAuthFile(JSON.parse(await readFile(file, "utf8")))
+    } catch {
+      return undefined
+    }
+  }
+
   ctx.provide(UsageIpc, {
     async get(input): Promise<UsageResult> {
       const serverID = input.server ?? "sidecar"
+      const respond = (result: UsageResult): UsageResult => {
+        logResult(serverID, result)
+        return result
+      }
+
       const endpoint = ctx.serverEndpoints.get(serverID)
       if (!endpoint) {
-        return keepLastGood(serverID, {
-          state: "unavailable",
-          message: "The OpenCode server isn't ready.",
-        })
+        return respond(
+          keepLastGood(serverID, {
+            state: "unavailable",
+            message: "The OpenCode server isn't ready.",
+          }),
+        )
       }
 
       let choice: CredentialChoice | undefined
@@ -68,39 +102,42 @@ export const main: Plugin.MainSetup = (ctx) => {
           choice = selectGoCredential(body.data)
         } catch {
           if (serverID !== "sidecar") {
-            return keepLastGood(serverID, {
-              state: "unavailable",
-              message: "Couldn't check the remote OpenCode connection.",
-            })
+            return respond(
+              keepLastGood(serverID, {
+                state: "unavailable",
+                message: "Couldn't check the remote OpenCode connection.",
+              }),
+            )
           }
 
-          const file = authFilePath()
-          if (!file) {
-            return keepLastGood(serverID, {
-              state: "unavailable",
-              message: "Couldn't check your OpenCode connection.",
-            })
+          const fallback = await readAuthChoice()
+          if (!fallback) {
+            return respond(
+              keepLastGood(serverID, {
+                state: "unavailable",
+                message: "Couldn't check your OpenCode connection.",
+              }),
+            )
           }
-
-          try {
-            choice = readAuthFile(JSON.parse(await readFile(file, "utf8")))
-          } catch {
-            return keepLastGood(serverID, {
-              state: "unavailable",
-              message: "Couldn't check your OpenCode connection.",
-            })
-          }
+          choice = fallback
         }
       }
 
-      if (!choice) {
-        return keepLastGood(serverID, {
-          state: "unavailable",
-          message: "Couldn't check your OpenCode connection.",
-        })
+      if (choice?.kind === "none" && serverID === "sidecar") {
+        const fallback = await readAuthChoice()
+        if (fallback && fallback.kind !== "none") choice = fallback
       }
-      if (choice.kind === "console-only") return { state: "console-only" }
-      if (choice.kind === "none") return { state: "signed-out" }
+
+      if (!choice) {
+        return respond(
+          keepLastGood(serverID, {
+            state: "unavailable",
+            message: "Couldn't check your OpenCode connection.",
+          }),
+        )
+      }
+      if (choice.kind === "console-only") return respond({ state: "console-only" })
+      if (choice.kind === "none") return respond({ state: "signed-out" })
 
       const credentialID =
         choice.source === "credential"
@@ -109,23 +146,27 @@ export const main: Plugin.MainSetup = (ctx) => {
       const key = cacheKey(serverID, credentialID)
       const cached = cache.get(key)
       if (!input.force && cached && Date.now() - cached.at < cacheTtl(cached.result)) {
-        return cached.result
+        return respond(cached.result)
       }
 
       const pending = inFlight.get(key)
-      if (pending) return pending
+      if (pending) return respond(await pending)
 
       const request = (async () => {
         const result = withStaleData(await requestUsage(choice.key), cached?.lastGood)
-        if (result.state === "ok") lastGoodByServer.set(serverID, result.data)
+        if (result.state === "ok") {
+          lastGoodByServer.set(serverID, result.data)
+          pruneOldest(lastGoodByServer, MAX_ENTRIES)
+        }
         const lastGood = dataOf(result) ?? cached?.lastGood
         cache.set(key, { at: Date.now(), result, lastGood })
+        pruneOldest(cache, MAX_ENTRIES)
         return result
       })()
 
       inFlight.set(key, request)
       void request.finally(() => inFlight.delete(key))
-      return request
+      return respond(await request)
     },
   })
 }
