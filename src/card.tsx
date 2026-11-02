@@ -1,23 +1,9 @@
 import { onMount, Show } from "solid-js"
 import type { Context } from "@opencode/plugin/gui"
 import { MeterRow } from "./meter"
+import { StatusBlock } from "./status"
 import type { UsageState } from "./state"
 import { dataOf, formatUpdated, statusCopy } from "./usage"
-
-function actionLabel(action: ReturnType<typeof statusCopy>["action"]): string {
-  switch (action) {
-    case "connect":
-      return "Connect OpenCode Go"
-    case "usage":
-      return "Open built-in Usage"
-    case "console":
-      return "Open Console"
-    case "retry":
-      return "Retry"
-    case "none":
-      return ""
-  }
-}
 
 export function UsageCard(props: {
   state: UsageState
@@ -59,61 +45,7 @@ export function UsageCard(props: {
       <Show
         when={data()}
         fallback={
-          <Show
-            when={!props.state.loading()}
-            fallback={
-              <div
-                style={{
-                  display: "flex",
-                  "justify-content": "center",
-                  padding: "12px",
-                }}
-              >
-                <ui.Loader size="small" />
-              </div>
-            }
-          >
-            <div style={{ display: "grid", gap: "8px", padding: "4px 4px 2px" }}>
-              <div
-                style={{
-                  "font-size": "13px",
-                  "font-weight": 590,
-                  color: "var(--v2-text-text-base)",
-                }}
-              >
-                {copy().title}
-              </div>
-              <div
-                style={{
-                  "font-size": "12px",
-                  color: "var(--v2-text-text-muted)",
-                  "line-height": "1.45",
-                }}
-              >
-                {copy().body}
-              </div>
-              <Show when={copy().action !== "none"}>
-                <button
-                  type="button"
-                  onClick={run}
-                  style={{
-                    "justify-self": "start",
-                    "margin-top": "2px",
-                    border: "none",
-                    "border-radius": "6px",
-                    background: "var(--v2-background-bg-button-neutral)",
-                    color: "var(--v2-text-text-base)",
-                    padding: "6px 10px",
-                    "font-size": "12px",
-                    "font-weight": 530,
-                    cursor: "pointer",
-                  }}
-                >
-                  {actionLabel(copy().action)}
-                </button>
-              </Show>
-            </div>
-          </Show>
+          <StatusBlock copy={copy()} run={run} loading={props.state.loading()} ui={ui} />
         }
       >
         {(data) => (
