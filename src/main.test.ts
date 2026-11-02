@@ -4,11 +4,7 @@ import { join } from "node:path"
 import { afterEach, expect, it, vi } from "vitest"
 import { main } from "./main"
 import { USAGE_URL } from "./request"
-import {
-  dataOf,
-  type ModelAnalyticsResult,
-  type UsageResult,
-} from "./usage"
+import { dataOf, type UsageResult } from "./usage"
 
 const okBody = {
   usage: {
@@ -46,12 +42,6 @@ const credentialBody = {
 
 type Impl = {
   get(input: { server?: string; force?: boolean }): Promise<UsageResult>
-  models(input: {
-    server?: string
-    monthlyResetsAt?: number
-    monthlyPercent?: number
-    force?: boolean
-  }): Promise<ModelAnalyticsResult>
 }
 
 const originalXdg = process.env.XDG_DATA_HOME
@@ -321,70 +311,6 @@ it("coalesces concurrent requests for the same credential", async () => {
   const [a, b] = await Promise.all([first, second])
   expect(a.state).toBe("ok")
   expect(b).toEqual(a)
-})
-
-it("loads per-model stats for the monthly allowance period", async () => {
-  const statsBody = {
-    data: {
-      models: [
-        {
-          model: {
-            id: "deepseek-v4.1-flash",
-            providerID: "opencode-go",
-            variant: "max",
-          },
-          cost: 9.3,
-          tokens: { input: 100, output: 50, reasoning: 25, cache: { read: 1000, write: 0 } },
-        },
-        {
-          model: {
-            id: "deepseek-v4.1-flash",
-            providerID: "opencode-go",
-            variant: "default",
-          },
-          cost: 3.2,
-          tokens: { input: 10, output: 5, reasoning: 2, cache: { read: 100, write: 0 } },
-        },
-        {
-          model: { id: "glm-5.3", providerID: "afiqstore", variant: "default" },
-          cost: 4,
-          tokens: { input: 1, output: 1, reasoning: 1, cache: { read: 1, write: 1 } },
-        },
-      ],
-    },
-  }
-  const calls: string[] = []
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (input: string | URL | Request) => {
-      const url = String(input)
-      calls.push(url)
-      if (url.includes("/api/experimental/session/stats")) {
-        return new Response(JSON.stringify(statsBody), { status: 200 })
-      }
-      throw new Error(`unexpected request ${url}`)
-    }),
-  )
-
-  const get = setup()
-  const result = await get.models({
-    server: "sidecar",
-    monthlyResetsAt: Date.UTC(2026, 10, 22),
-    monthlyPercent: 83,
-  })
-  expect(result.state).toBe("ok")
-  if (result.state === "ok") {
-    expect(result.data.monthlyFrom).toBe(Date.UTC(2026, 9, 22))
-    expect(result.data.serverMonthlyPercent).toBe(83)
-    expect(result.data.totalMonthlyCost).toBe(12.5)
-    expect(result.data.models).toHaveLength(1)
-    expect(result.data.models[0]).toMatchObject({
-      modelID: "deepseek-v4.1-flash",
-      monthlyCost: 12.5,
-      monthlyTokens: 1292,
-    })
-  }
-  expect(calls.filter((url) => url.includes("session/stats"))).toHaveLength(3)
 })
 
 it("logs a sanitized state change without the key", async () => {

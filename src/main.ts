@@ -10,12 +10,8 @@ import {
   cacheKey,
   cacheTtl,
   dataOf,
-  mergeModelUsage,
-  parseStatsModels,
   pruneOldest,
-  subtractMonth,
   withStaleData,
-  type ModelAnalyticsResult,
   type UsageData,
   type UsageResult,
 } from "./usage"
@@ -37,7 +33,6 @@ export const main: Plugin.MainSetup = (ctx) => {
   const cache = new Map<string, { at: number; result: UsageResult; lastGood?: UsageData }>()
   const lastGoodByServer = new Map<string, UsageData>()
   const inFlight = new Map<string, Promise<UsageResult>>()
-  const modelCache = new Map<string, { at: number; result: ModelAnalyticsResult }>()
   const loggedState = new Map<string, string>()
 
   const keepLastGood = (serverID: string, result: UsageResult): UsageResult =>
@@ -65,23 +60,6 @@ export const main: Plugin.MainSetup = (ctx) => {
     } catch {
       return undefined
     }
-  }
-
-  const fetchStats = async (
-    endpoint: { url: string; headers: Readonly<Record<string, string>> },
-    from: number,
-    to: number,
-  ) => {
-    const url = new URL(
-      `/api/experimental/session/stats?from=${from}&to=${to}&tools=none`,
-      endpoint.url,
-    )
-    const response = await fetch(url, {
-      headers: endpoint.headers,
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    })
-    if (!response.ok) throw new Error(`session stats endpoint ${response.status}`)
-    return parseStatsModels(await response.json())
   }
 
   ctx.provide(UsageIpc, {
@@ -189,51 +167,6 @@ export const main: Plugin.MainSetup = (ctx) => {
       inFlight.set(key, request)
       void request.finally(() => inFlight.delete(key))
       return respond(await request)
-    },
-
-    async models(input): Promise<ModelAnalyticsResult> {
-      const serverID = input.server ?? "sidecar"
-      const endpoint = ctx.serverEndpoints.get(serverID)
-      if (!endpoint) {
-        return { state: "error", message: "The OpenCode server isn't ready." }
-      }
-
-      const now = Date.now()
-      const monthlyFrom = input.monthlyResetsAt
-        ? subtractMonth(input.monthlyResetsAt)
-        : now - 30 * 24 * 60 * 60 * 1000
-      const weeklyFrom = now - 7 * 24 * 60 * 60 * 1000
-      const rollingFrom = now - 5 * 60 * 60 * 1000
-      const cacheID = `${serverID}:${monthlyFrom}`
-      const cached = modelCache.get(cacheID)
-      if (!input.force && cached && now - cached.at < 45_000) return cached.result
-
-      try {
-        const [monthly, weekly, rolling] = await Promise.all([
-          fetchStats(endpoint, monthlyFrom, now),
-          fetchStats(endpoint, weeklyFrom, now),
-          fetchStats(endpoint, rollingFrom, now),
-        ])
-        const models = mergeModelUsage(monthly, weekly, rolling)
-        const result: ModelAnalyticsResult = {
-          state: "ok",
-          data: {
-            models,
-            monthlyFrom,
-            monthlyTo: now,
-            weeklyFrom,
-            rollingFrom,
-            totalMonthlyCost: models.reduce((total, model) => total + model.monthlyCost, 0),
-            serverMonthlyPercent: input.monthlyPercent ?? 0,
-          },
-        }
-        modelCache.set(cacheID, { at: now, result })
-        pruneOldest(modelCache, MAX_ENTRIES)
-        return result
-      } catch {
-        ctx.log.write("warn", "opencode-go model usage unavailable", { server: serverID })
-        return { state: "error", message: "Model usage couldn't be loaded." }
-      }
     },
   })
 }

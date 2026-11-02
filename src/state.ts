@@ -3,6 +3,9 @@ import type { Context } from "@opencode/plugin/gui"
 import { UsageIpc } from "./contract"
 import {
   dataOf,
+  mergeModelUsage,
+  parseStatsModels,
+  subtractMonth,
   withStaleData,
   type ModelAnalyticsResult,
   type UsageResult,
@@ -76,21 +79,44 @@ export function createUsageState(ctx: Context): UsageState {
   const refreshModels = async (opts: { force?: boolean; server?: string } = {}) => {
     const target = opts.server ?? server() ?? "sidecar"
     const current = resultServer() === target ? dataOf(rawResult()) : undefined
-    const input: {
-      server?: string
-      monthlyResetsAt?: number
-      monthlyPercent?: number
-      force?: boolean
-    } = { server: target }
-    if (current) {
-      input.monthlyResetsAt = current.windows.monthly.resetsAt
-      input.monthlyPercent = current.windows.monthly.percent
+    const now = Date.now()
+    const monthlyFrom = current
+      ? subtractMonth(current.windows.monthly.resetsAt)
+      : now - 30 * 24 * 60 * 60 * 1000
+    const weeklyFrom = now - 7 * 24 * 60 * 60 * 1000
+    const rollingFrom = now - 5 * 60 * 60 * 1000
+
+    const serverRef = ctx.servers.get(target)
+    const client = serverRef?.client ?? (target === "sidecar" ? ctx.client : undefined)
+    if (!client) {
+      setModels({ state: "error", message: "Model usage couldn't be loaded." })
+      return
     }
-    if (opts.force) input.force = true
 
     setModelsLoading(true)
     try {
-      setModels(await ctx.main(UsageIpc).models(input))
+      const [monthly, weekly, rolling] = await Promise.all([
+        client.experimental.session.stats({ from: monthlyFrom, to: now, tools: "none" }),
+        client.experimental.session.stats({ from: weeklyFrom, to: now, tools: "none" }),
+        client.experimental.session.stats({ from: rollingFrom, to: now, tools: "none" }),
+      ])
+      const models = mergeModelUsage(
+        parseStatsModels(monthly),
+        parseStatsModels(weekly),
+        parseStatsModels(rolling),
+      )
+      setModels({
+        state: "ok",
+        data: {
+          models,
+          monthlyFrom,
+          monthlyTo: now,
+          weeklyFrom,
+          rollingFrom,
+          totalMonthlyCost: models.reduce((total, model) => total + model.monthlyCost, 0),
+          serverMonthlyPercent: current?.windows.monthly.percent ?? 0,
+        },
+      })
     } catch {
       setModels({ state: "error", message: "Model usage couldn't be loaded." })
     } finally {
