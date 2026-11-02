@@ -11,7 +11,6 @@ import {
   formatTokens,
   formatUSD,
   formatUpdated,
-  impliedAllowance,
   mergeModelUsage,
   modelAllowance,
   modelDisplayName,
@@ -23,6 +22,7 @@ import {
   ringOffset,
   statusCopy,
   subtractMonth,
+  totalModelPercent,
   windowPercent,
   tightestWindow,
   usageTone,
@@ -244,13 +244,41 @@ it("calculates per-model window percentages and allowances", () => {
   expect(modelAllowance("unknown")).toBeUndefined()
   expect(modelDisplayName("deepseek-v4-pro")).toBe("DeepSeek V4 Pro")
   expect(modelDisplayName("some-new-model")).toBe("Some New Model")
-  expect(impliedAllowance(12.587, 83)).toBeCloseTo(15.16, 1)
   expect(subtractMonth(Date.UTC(2026, 10, 22))).toBe(Date.UTC(2026, 9, 22))
   expect(subtractMonth(Date.UTC(2026, 2, 31))).toBe(Date.UTC(2026, 1, 28))
   expect(formatUSD(12.587)).toBe("$12.59")
   expect(formatUSD(0.0016)).toBe("$0.0016")
   expect(formatPercent1(12.58)).toBe("12.6%")
   expect(formatTokens(1_200_000)).toBe("1.2M")
+})
+
+it("sums per-model percentages into the pooled monthly total", () => {
+  const models = [
+    {
+      providerID: "opencode-go",
+      modelID: "deepseek-v4.1-flash",
+      name: "DeepSeek V4.1 Flash",
+      monthlyCost: 50,
+      weeklyCost: 25,
+      rollingCost: 10,
+      monthlyTokens: 0,
+    },
+    {
+      providerID: "opencode-go",
+      modelID: "deepseek-v4-pro",
+      name: "DeepSeek V4 Pro",
+      monthlyCost: 8,
+      weeklyCost: 4,
+      rollingCost: 1.6,
+      monthlyTokens: 0,
+    },
+  ]
+  expect(totalModelPercent(models, undefined, "monthly")).toBe(100)
+  expect(totalModelPercent(models, undefined, "weekly")).toBe(100)
+  expect(totalModelPercent(models, undefined, "rolling")).toBe(100)
+  expect(
+    totalModelPercent(models, { "deepseek-v4.1-flash": 200 }, "monthly"),
+  ).toBe(75)
 })
 
 it("maps state actions and notices, including stale data", () => {

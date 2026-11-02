@@ -215,14 +215,15 @@ The settings page also shows a per-model analytics card. The Go usage endpoint o
 The stats are filtered to `providerID = "opencode-go"`, merged across model variants, and converted with the published Go monthly allowance table:
 
 ```text
-monthly % = model spend this period     ÷ monthly allowance
-5-hour %  = model spend in the last 5h  ÷ (20% of the monthly allowance)
-weekly %  = model spend in the last 7d  ÷ (50% of the monthly allowance)
+model monthly % = model spend this period     ÷ monthly allowance
+model 5-hour %  = model spend in the last 5h  ÷ (20% of the monthly allowance)
+model weekly %  = model spend in the last 7d  ÷ (50% of the monthly allowance)
+total monthly % = Σ model monthly %
 ```
 
-The card shows model name, local spend, token count, monthly allowance, monthly/weekly/5-hour share, and a monthly bar. It also shows a server-implied allowance for local spend (`local monthly spend ÷ server monthly percent`) when both values are present.
+The card shows model name, local spend, token count, monthly allowance, monthly/weekly/5-hour share, a monthly bar, and a **Local total** row that sums the model percentages. The server meters are the account total and may include other clients or machines.
 
-Allowances are per model and do not transfer. The card must say that per-model percentages are independent and must not be added into a single monthly limit; the server meters are separate and may include other clients or machines.
+Allowances are pooled in percentage terms: a model at 50% of its allowance plus another model at 50% of its allowance is 100% of the monthly pool. The card must explain this sum, not treat the model percentages as independent limits.
 
 Published allowances are defaults. The plugin option `allowances` is a `Record<modelID, number>` override for workspaces with different limits. The data source is local session statistics: model IDs, costs, and token counts only, never prompts or message content.
 

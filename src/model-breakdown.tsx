@@ -8,8 +8,8 @@ import {
   formatPercent1,
   formatTokens,
   formatUSD,
-  impliedAllowance,
   modelAllowance,
+  totalModelPercent,
   usageColor,
   usageTone,
   windowPercent,
@@ -114,11 +114,6 @@ export function ModelBreakdown(props: { state: UsageState; ctx: Context; ui: Ui 
     dataOf(props.state.result())?.windows.monthly.percent ??
     analytics()?.serverMonthlyPercent ??
     0
-  const implied = () => impliedAllowance(total(), serverMonthly())
-  const modelError = () => {
-    const result = props.state.models()
-    return result?.state === "error" ? result.message : undefined
-  }
   const overrides = () => {
     const value = props.ctx.options.allowances
     if (!value || typeof value !== "object") return {}
@@ -130,7 +125,14 @@ export function ModelBreakdown(props: { state: UsageState; ctx: Context; ui: Ui 
     }
     return allowances
   }
-
+  const totalMonthly = () => totalModelPercent(models(), overrides(), "monthly")
+  const totalWeekly = () => totalModelPercent(models(), overrides(), "weekly")
+  const totalRolling = () => totalModelPercent(models(), overrides(), "rolling")
+  const totalTone = () => usageTone(totalMonthly(), false)
+  const modelError = () => {
+    const result = props.state.models()
+    return result?.state === "error" ? result.message : undefined
+  }
   return (
     <div style={cardStyle}>
       <div
@@ -206,6 +208,76 @@ export function ModelBreakdown(props: { state: UsageState; ctx: Context; ui: Ui 
             />
           )}
         </For>
+
+        <div style={{ ...rowStyle, display: "grid", gap: "6px" }}>
+          <div
+            style={{
+              display: "flex",
+              "justify-content": "space-between",
+              "align-items": "baseline",
+              gap: "12px",
+            }}
+          >
+            <div style={{ display: "grid", gap: "3px" }}>
+              <span
+                style={{
+                  "font-size": "13px",
+                  "font-weight": 600,
+                  color: "var(--v2-text-text-base)",
+                }}
+              >
+                Local total
+              </span>
+              <span style={{ "font-size": "11px", color: "var(--v2-text-text-muted)" }}>
+                {formatUSD(total())} local
+              </span>
+            </div>
+            <div style={{ display: "grid", gap: "3px", "text-align": "right" }}>
+              <span
+                style={{
+                  "font-size": "13px",
+                  "font-weight": 600,
+                  color: usageColor(totalTone()),
+                }}
+              >
+                {formatPercent1(totalMonthly())}
+              </span>
+              <span style={{ "font-size": "11px", color: "var(--v2-text-text-muted)" }}>
+                of monthly
+              </span>
+            </div>
+          </div>
+          <div
+            style={{
+              height: "5px",
+              background: "var(--v2-border-border-muted)",
+              "border-radius": "999px",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                width: `${clampPercent(totalMonthly())}%`,
+                height: "100%",
+                background: usageColor(totalTone()),
+                "border-radius": "999px",
+              }}
+            />
+          </div>
+          <div
+            style={{
+              display: "flex",
+              gap: "12px",
+              "flex-wrap": "wrap",
+              "font-size": "11px",
+              color: "var(--v2-text-text-faint)",
+            }}
+          >
+            <span>5h {formatPercent1(totalRolling())}</span>
+            <span>wk {formatPercent1(totalWeekly())}</span>
+            <span>Pooled monthly percentage</span>
+          </div>
+        </div>
       </Show>
 
       <div
@@ -220,22 +292,17 @@ export function ModelBreakdown(props: { state: UsageState; ctx: Context; ui: Ui 
         }}
       >
         <span>
-          Monthly % = local spend ÷ monthly allowance. 5-hour % = last 5h ÷ 20% of the
+          Monthly % = model spend ÷ model allowance. 5-hour % = last 5h ÷ 20% of the
           allowance; weekly % = last 7d ÷ 50%.
         </span>
         <span>
-          Allowances are per model and do not transfer. Each percentage stands on its
-          own; do not add them into one monthly limit.
+          Total monthly % is the sum of the model percentages. 100% means the pooled
+          monthly allowance is exhausted.
         </span>
         <span>
-          Local spend only; the server meters above can include other machines or clients.
+          Local rows use this server's sessions; the server meters above include all
+          clients and machines.
         </span>
-        <Show when={implied() !== undefined}>
-          <span>
-            Server-implied allowance for local spend: {formatUSD(implied()!)} (server
-            monthly {formatPercent1(serverMonthly())}).
-          </span>
-        </Show>
         <span>
           Published Go allowances are used; set the plugin's `allowances` option to
           override a model.

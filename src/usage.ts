@@ -474,12 +474,21 @@ export function windowPercent(
   return (cost / limit) * 100
 }
 
-export function impliedAllowance(
-  totalCost: number,
-  serverMonthlyPercent: number,
-): number | undefined {
-  if (!(totalCost > 0) || !(serverMonthlyPercent > 0)) return undefined
-  return totalCost / (serverMonthlyPercent / 100)
+export function totalModelPercent(
+  models: readonly ModelUsage[],
+  overrides: Record<string, number> | undefined,
+  kind: WindowKey,
+): number {
+  return models.reduce((total, model) => {
+    const cost =
+      kind === "rolling"
+        ? model.rollingCost
+        : kind === "weekly"
+          ? model.weeklyCost
+          : model.monthlyCost
+    const allowance = modelAllowance(model.modelID, overrides)
+    return total + (windowPercent(cost, allowance, kind) ?? 0)
+  }, 0)
 }
 
 export function formatUSD(value: number): string {

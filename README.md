@@ -33,17 +33,18 @@ The Go usage endpoint returns one set of window meters. The **Go usage** setting
 
 - local spend, token count, and the model's monthly allowance
 - the model's share of its 5-hour, weekly, and monthly allowances
-- a server-implied allowance for the local spend when the server monthly meter is available
+- a **Local total** row that sums the model percentages into the pooled percentage
 
 How the percentages are calculated:
 
 ```text
-monthly % = model spend this period      ÷ model monthly allowance
-5-hour %  = model spend in the last 5h   ÷ (20% of the monthly allowance)
-weekly %  = model spend in the last 7d   ÷ (50% of the monthly allowance)
+model monthly % = model spend this period      ÷ model monthly allowance
+model 5-hour %  = model spend in the last 5h   ÷ (20% of the monthly allowance)
+model weekly %  = model spend in the last 7d   ÷ (50% of the monthly allowance)
+total monthly % = Σ model monthly %
 ```
 
-Allowances are **per model** and do not transfer. Each percentage stands on its own: two models at 50% are each half-used, not 100% of one combined monthly limit. The server meters at the top of the page are separate and can include other machines or clients.
+Allowances are pooled in percentage terms: a model at 50% of its allowance plus another model at 50% of its allowance is 100% of the monthly pool. The server meters at the top of the page are the account total and can include other machines or clients; the **Local total** is this server's contribution.
 
 Published Go allowances are used as defaults. If your workspace has different limits, override them in the plugin options. This requires the object form of the plugin entry:
 
@@ -63,7 +64,7 @@ Published Go allowances are used as defaults. If your workspace has different li
 }
 ```
 
-The settings page shows a **server-implied allowance for local spend** when both the server monthly meter and the local spend are available. If that differs from the published table, use your workspace's actual value in the override.
+If the **Local total** and the server monthly meter differ, the server meter includes usage from other clients or machines, or the allowance table does not match your workspace. Use your workspace's actual allowance values in the override.
 
 ## Install
 
