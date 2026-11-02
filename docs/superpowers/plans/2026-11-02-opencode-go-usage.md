@@ -719,7 +719,7 @@ Add the absolute path to `~/.config/opencode/opencode.jsonc`:
 {
   "plugins": [
     "superpowers@git+https://github.com/obra/superpowers.git",
-    "/Users/danishhakim/Documents/Default Project/opencode-usage"
+    "/path/to/opencode-usage"
   ]
 }
 ```

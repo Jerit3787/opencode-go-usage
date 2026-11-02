@@ -278,7 +278,7 @@ Add the absolute plugin directory to the global `~/.config/opencode/opencode.jso
 {
   "plugins": [
     "superpowers@git+https://github.com/obra/superpowers.git",
-    "/Users/danishhakim/Documents/Default Project/opencode-usage"
+    "/path/to/opencode-usage"
   ]
 }
 ```
