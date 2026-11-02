@@ -1,4 +1,5 @@
 import type { ComposerPill, Context } from "@opencode/plugin/gui"
+import { UsageCard } from "./card"
 import type { UsageState } from "./state"
 import { pillView } from "./usage"
 
@@ -12,10 +13,16 @@ export function usagePill(ctx: Context, state: UsageState): ComposerPill {
       const view = pillView(state.result())
       return { label: view.label, title: USAGE_TITLE, tone: view.tone }
     },
-    menu: () => (
-      <div style={{ padding: "8px", color: "var(--v2-text-text-muted)", "font-size": "12px" }}>
-        Usage card
-      </div>
+    menu: (input) => (
+      <UsageCard
+        state={state}
+        ctx={ctx}
+        close={input.close}
+        onSeeAll={() => {
+          input.close()
+          state.openSettings()
+        }}
+      />
     ),
   }
 }
