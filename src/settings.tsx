@@ -15,6 +15,19 @@ import {
   usageTone,
 } from "./usage"
 
+const cardStyle = {
+  background: "var(--v2-background-bg-layer-01)",
+  "box-shadow": "inset 0 0 0 0.5px var(--v2-border-border-muted)",
+  "border-radius": "8px",
+  "padding-inline": "20px",
+}
+
+const rowStyle = {
+  "border-top": "0.5px solid var(--v2-border-border-muted)",
+  "padding-block": "16px",
+  "padding-inline": "16px",
+}
+
 export function UsageSettings(props: { state: UsageState; ctx: Context }) {
   const ui = props.ctx.ui
   const data = () => dataOf(props.state.result())
@@ -33,7 +46,9 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
 
   const updated = () => {
     const current = data()
-    return current ? formatUpdated(current.updatedAt, Date.now()) : "Waiting for usage"
+    if (!current) return "Waiting for usage"
+    const label = formatUpdated(current.updatedAt, Date.now())
+    return current.stale ? `${label} · last reading` : label
   }
 
   onMount(() => {
@@ -63,117 +78,184 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
   }
 
   return (
-    <div style={{ display: "grid", gap: "20px", "max-width": "720px" }}>
+    <div style={{ display: "flex", "flex-direction": "column", "min-height": "100%" }}>
       <div
         style={{
-          display: "flex",
-          "align-items": "center",
-          gap: "16px",
-          "flex-wrap": "wrap",
+          position: "sticky",
+          top: 0,
+          "z-index": 10,
+          background: "var(--v2-background-bg-base)",
+          padding: "40px 0 0",
         }}
       >
-        <Show
-          when={tightest()}
-          fallback={
-            <div
-              style={{
-                width: "64px",
-                height: "64px",
-                "border-radius": "50%",
-                background: "var(--v2-background-bg-layer-01)",
-              }}
-            />
-          }
+        <div
+          style={{
+            display: "flex",
+            "justify-content": "space-between",
+            "align-items": "center",
+            gap: "16px",
+          }}
         >
-          {(entry) => (
-            <Ring
-              percent={entry().window.percent}
-              size={64}
-              stroke={6}
-              color={usageColor(entry().tone)}
-              label={formatPercent(entry().window.percent)}
-            />
-          )}
-        </Show>
-
-        <div style={{ display: "grid", gap: "4px", flex: 1, "min-width": "180px" }}>
           <div
             style={{
               "font-size": "15px",
-              "font-weight": 600,
+              "font-weight": 640,
+              "line-height": "var(--line-height-base)",
               color: "var(--v2-text-text-base)",
             }}
           >
-            OpenCode Go
+            Go usage
           </div>
-          <div style={{ "font-size": "12px", color: "var(--v2-text-text-muted)" }}>
-            {updated()}
-          </div>
+          <ui.Button
+            variant="neutral"
+            icon="refresh"
+            busy={props.state.loading()}
+            onClick={() => void props.state.refresh({ force: true })}
+          >
+            Refresh
+          </ui.Button>
         </div>
-
-        <ui.Button
-          variant="neutral"
-          icon="refresh"
-          busy={props.state.loading()}
-          onClick={() => void props.state.refresh({ force: true })}
-        >
-          Refresh
-        </ui.Button>
       </div>
 
-      <Show
-        when={data()}
-        fallback={
-          <StatusBlock copy={copy()} run={run} loading={props.state.loading()} ui={ui} />
-        }
+      <div
+        style={{
+          display: "flex",
+          "flex-direction": "column",
+          gap: "32px",
+          padding: "16px 0 40px",
+        }}
       >
-        {(current) => (
-          <div style={{ display: "grid", gap: "16px" }}>
-            <Show when={notice()}>
-              {(notice) => <InlineNotice copy={notice()} run={run} />}
-            </Show>
+        <div
+          style={{
+            "font-size": "13px",
+            "line-height": "1.45",
+            color: "var(--v2-text-text-muted)",
+          }}
+        >
+          Your OpenCode Go limits and reset times.
+        </div>
 
-            <Show when={current().stale}>
+        <Show when={notice()}>
+          {(notice) => <InlineNotice copy={notice()} run={run} />}
+        </Show>
+
+        <Show
+          when={data()}
+          fallback={
+            <div style={cardStyle}>
+              <div style={{ padding: "16px 16px" }}>
+                <StatusBlock
+                  copy={copy()}
+                  run={run}
+                  loading={props.state.loading()}
+                  ui={ui}
+                />
+              </div>
+            </div>
+          }
+        >
+          {(current) => (
+            <div style={cardStyle}>
               <div
                 style={{
-                  "font-size": "12px",
-                  color: "var(--v2-state-fg-warning)",
+                  display: "flex",
+                  "align-items": "center",
+                  gap: "16px",
+                  "padding-block": "16px",
+                  "padding-inline": "16px",
                 }}
               >
-                Showing the last reading.
+                <Show
+                  when={tightest()}
+                  fallback={
+                    <div
+                      style={{
+                        width: "64px",
+                        height: "64px",
+                        "border-radius": "50%",
+                        background: "var(--v2-background-bg-layer-02)",
+                      }}
+                    />
+                  }
+                >
+                  {(entry) => (
+                    <Ring
+                      percent={entry().window.percent}
+                      size={64}
+                      stroke={6}
+                      color={usageColor(entry().tone)}
+                      label={formatPercent(entry().window.percent)}
+                    />
+                  )}
+                </Show>
+
+                <div style={{ display: "grid", gap: "4px", flex: 1, "min-width": 0 }}>
+                  <div
+                    style={{
+                      "font-size": "15px",
+                      "font-weight": 600,
+                      color: "var(--v2-text-text-base)",
+                    }}
+                  >
+                    OpenCode Go
+                  </div>
+                  <div
+                    style={{
+                      "font-size": "12px",
+                      color: "var(--v2-text-text-muted)",
+                    }}
+                  >
+                    {updated()}
+                  </div>
+                </div>
               </div>
-            </Show>
 
-            <MeterRow
-              size="large"
-              label="5-hour limit"
-              window={current().windows.rolling}
-              now={Date.now()}
-            />
-            <MeterRow
-              size="large"
-              label="Weekly · all models"
-              window={current().windows.weekly}
-              now={Date.now()}
-            />
-            <MeterRow
-              size="large"
-              label="Monthly"
-              window={current().windows.monthly}
-              now={Date.now()}
-            />
+              <div style={rowStyle}>
+                <MeterRow
+                  size="large"
+                  label="5-hour limit"
+                  window={current().windows.rolling}
+                  now={Date.now()}
+                />
+              </div>
+              <div style={rowStyle}>
+                <MeterRow
+                  size="large"
+                  label="Weekly · all models"
+                  window={current().windows.weekly}
+                  now={Date.now()}
+                />
+              </div>
+              <div style={rowStyle}>
+                <MeterRow
+                  size="large"
+                  label="Monthly"
+                  window={current().windows.monthly}
+                  now={Date.now()}
+                />
+              </div>
 
-            <div style={{ display: "flex", gap: "8px", "flex-wrap": "wrap" }}>
-              <ui.Button variant="neutral" onClick={props.state.openConsole}>
-                View in Console
-              </ui.Button>
-              <ui.Button variant="ghost" onClick={props.state.openBuiltinUsage}>
-                Open built-in Usage
-              </ui.Button>
+              <div
+                style={{
+                  ...rowStyle,
+                  display: "flex",
+                  "justify-content": "flex-end",
+                  gap: "8px",
+                  "flex-wrap": "wrap",
+                  "padding-block": "12px 16px",
+                }}
+              >
+                <ui.Button variant="neutral" onClick={props.state.openConsole}>
+                  View in Console
+                </ui.Button>
+                <ui.Button variant="ghost" onClick={props.state.openBuiltinUsage}>
+                  Open built-in Usage
+                </ui.Button>
+              </div>
             </div>
-          </div>
-        )}
-      </Show>
+          )}
+        </Show>
+      </div>
     </div>
   )
 }
