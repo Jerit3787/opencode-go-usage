@@ -8,6 +8,7 @@ import {
   formatPercent1,
   formatTokens,
   formatUSD,
+  GO_PRICING_URL,
   modelAllowance,
   totalModelPercent,
   usageColor,
@@ -356,6 +357,22 @@ export function ModelBreakdown(props: { state: UsageState; ctx: Context; ui: Ui 
           Published Go allowances are used; set the plugin's `allowances` option to
           override a model.
         </span>
+        <button
+          type="button"
+          onClick={() => props.ctx.system.openExternal(GO_PRICING_URL)}
+          style={{
+            "justify-self": "start",
+            border: "none",
+            background: "transparent",
+            color: "var(--v2-text-text-accent)",
+            "font-size": "11px",
+            "font-weight": 530,
+            padding: 0,
+            cursor: "pointer",
+          }}
+        >
+          OpenCode Go pricing ↗
+        </button>
       </div>
     </div>
   )

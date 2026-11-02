@@ -46,7 +46,9 @@ total monthly % = Σ model monthly %
 
 Allowances are pooled in percentage terms: a model at 50% of its allowance plus another model at 50% of its allowance is 100% of the monthly pool. The server meters at the top of the page are the account total and can include other machines or clients; the **Pooled total** is this server's contribution.
 
-Published Go allowances are used as defaults. If your workspace has different limits, override them in the plugin options. This requires the object form of the plugin entry:
+Published Go allowances are used as defaults, pulled from the [Go usage limits table](https://opencode.ai/v2/docs/console/go#usage-limits) on 2026-11-02. That table lists DeepSeek V4 Pro at **$15/month**; if your workspace gives it **$20**, use the override below. The settings card also links to the current table.
+
+Overrides require the object form of the plugin entry:
 
 ```jsonc
 {

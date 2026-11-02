@@ -225,7 +225,7 @@ The card shows model name, local spend, token count, monthly allowance, monthly/
 
 Allowances are pooled in percentage terms: a model at 50% of its allowance plus another model at 50% of its allowance is 100% of the monthly pool. The card must explain this sum, not treat the model percentages as independent limits.
 
-Published allowances are defaults. The plugin option `allowances` is a `Record<modelID, number>` override for workspaces with different limits. The data source is local session statistics: model IDs, costs, and token counts only, never prompts or message content.
+Published allowances are defaults, pulled from the Go usage limits table on 2026-11-02. The plugin option `allowances` is a `Record<modelID, number>` override for workspaces with different limits. The data source is local session statistics: model IDs, costs, and token counts only, never prompts or message content.
 
 ### States
 

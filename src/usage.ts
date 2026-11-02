@@ -54,6 +54,11 @@ export type ModelAnalyticsResult =
   | { state: "ok"; data: ModelAnalytics }
   | { state: "error"; message: string }
 
+// Monthly allowances from the Go plan table:
+// https://opencode.ai/v2/docs/console/go#usage-limits
+// Pulled 2026-11-02.
+export const GO_PRICING_URL = "https://opencode.ai/v2/docs/console/go#usage-limits"
+
 export const GO_MONTHLY_ALLOWANCES: Record<string, number> = {
   "glm-5.3-flash": 60,
   "glm-5.3": 15,
@@ -75,7 +80,7 @@ export const GO_MONTHLY_ALLOWANCES: Record<string, number> = {
   "qwen3.8-flash": 30,
   "qwen3.7-plus": 60,
   "deepseek-v4.1-flash": 100,
-  "deepseek-v4-pro": 20,
+  "deepseek-v4-pro": 15,
   "hy4-preview": 30,
   "hy3": 60,
   "grok-4.7": 15,
