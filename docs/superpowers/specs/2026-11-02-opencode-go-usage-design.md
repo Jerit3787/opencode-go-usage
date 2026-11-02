@@ -37,7 +37,14 @@ The app already ships a Usage page, but it reads `/api/experimental/usage/limits
 - The pill button gets `data-slot="session-plugin-pill"`, `data-composer-pill`, and `aria-label` equal to the view's `title`. A scoped `Style` contribution can add a `::before` conic-gradient ring to that pill. If the host DOM changes, the text-only pill remains usable.
 - The main process has no `ctx.client`. It can reach a server through `ctx.serverEndpoints.get(id)`, whose `url` and `headers` carry the server authentication. The window passes the active session's server id; the default is `"sidecar"`. This works for local and remote servers.
 - Credentials are per server. The cache is keyed by server id and credential id, so switching accounts or servers cannot reuse another account's reading.
-- The Go usage endpoint is `GET https://opencode.ai/zen/go/v1/usage` with `Authorization: Bearer <key>`. Response:
+- The aggregate source order is:
+
+1. The signed-in Console workspace through the app's `GET /api/experimental/usage/limits` endpoint. It returns the workspace (`id`, `name`, `usageURL`) and the same `go` meters.
+2. The Go API key endpoint `GET https://opencode.ai/zen/go/v1/usage` when Console is not connected.
+
+The Console endpoint does not expose per-model activity; the model breakdown is local session stats. The **View in Console** action opens the workspace `usageURL`.
+
+The Go usage endpoint uses `Authorization: Bearer <key>`. Response:
   ```json
   {
     "usage": {

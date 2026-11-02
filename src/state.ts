@@ -157,6 +157,9 @@ export function createUsageState(ctx: Context): UsageState {
     openBuiltinUsage: () => {
       if (!ctx.commands.run("usage.view")) ctx.system.openExternal("https://opencode.ai/console")
     },
-    openConsole: () => ctx.system.openExternal("https://opencode.ai/console"),
+    openConsole: () =>
+      ctx.system.openExternal(
+        dataOf(rawResult())?.workspace?.usageURL ?? "https://opencode.ai/console",
+      ),
   }
 }

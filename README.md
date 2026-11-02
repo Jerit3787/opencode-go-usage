@@ -25,7 +25,9 @@ GET https://opencode.ai/zen/go/v1/usage
 
 The response contains `rolling`, `weekly`, and `monthly` percentages and reset times. This is the same data the Go console shows; the plugin does not estimate spend.
 
-The built-in OpenCode Usage page depends on a Console workspace sign-in. This plugin is for the API-key path. If the active credential is Console/OAuth only, the popover points you to the built-in Usage page instead of showing a false "not connected" state.
+When the desktop app is signed in to OpenCode Console, the plugin prefers the app's `/api/experimental/usage/limits` endpoint. It returns the Console workspace and the same Go meters, so the aggregate meters and the **View in Console** link follow the signed-in workspace. If Console is not connected, the plugin falls back to the Go API key endpoint. The Console endpoint does not expose per-model activity, so the model breakdown remains this server's local session stats.
+
+The built-in OpenCode Usage page also uses the Console workspace. If the active credential is Console/OAuth only, the plugin can still show the aggregate meters from the Console endpoint; the per-model card notes that its numbers are local.
 
 ## Model breakdown
 
@@ -108,7 +110,7 @@ Remove the plugin directory entry from `plugins` in `~/.config/opencode/opencode
 - It is used only for the Go usage GET.
 - It is never returned to the window, written to plugin storage, or logged.
 - The plugin sends no telemetry, prompts, code, or session content.
-- The only requests are the local OpenCode credential read, the local session-stats read, and the Go usage GET.
+- The only requests are the local OpenCode credential read, the local session-stats read, the local Console usage-limits read, and the Go usage GET.
 - The model breakdown reads only model IDs, costs, and token counts; it never reads prompts or message content.
 - Only percentages, reset times, model spend, and token counts are displayed.
 

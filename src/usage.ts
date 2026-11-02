@@ -8,11 +8,18 @@ export type UsageWindow = {
   resetsAt: number
 }
 
+export type ConsoleWorkspace = {
+  id: string
+  name?: string
+  usageURL: string
+}
+
 export type UsageData = {
   windows: Record<WindowKey, UsageWindow>
   updatedAt: number
   stale: boolean
   error?: string
+  workspace?: ConsoleWorkspace
 }
 
 export type UsageResult =
@@ -175,6 +182,42 @@ export function parseUsageResponse(body: unknown, now: number): UsageData | null
   }
 
   return { windows, updatedAt: now, stale: false }
+}
+
+export function parseUsageLimits(body: unknown, now: number): UsageData | null {
+  if (!isRecord(body) || !isRecord(body.data)) return null
+  const data = body.data
+  if (!isRecord(data.go)) return null
+
+  const windows = {} as Record<WindowKey, UsageWindow>
+  for (const key of WINDOW_KEYS) {
+    const meter = data.go[key]
+    if (!isRecord(meter)) return null
+    if (typeof meter.percent !== "number" || !Number.isFinite(meter.percent)) return null
+    windows[key] = {
+      percent: clampPercent(meter.percent),
+      limited: meter.limited === true,
+      resetsAt:
+        typeof meter.resetsAt === "number" && Number.isFinite(meter.resetsAt)
+          ? meter.resetsAt
+          : 0,
+    }
+  }
+
+  let workspace: ConsoleWorkspace | undefined
+  if (
+    isRecord(data.workspace) &&
+    typeof data.workspace.usageURL === "string"
+  ) {
+    workspace = {
+      id: typeof data.workspace.id === "string" ? data.workspace.id : "",
+      name:
+        typeof data.workspace.name === "string" ? data.workspace.name : undefined,
+      usageURL: data.workspace.usageURL,
+    }
+  }
+
+  return { windows, updatedAt: now, stale: false, workspace }
 }
 
 export function tightestWindow(data: UsageData): { key: WindowKey; window: UsageWindow } {

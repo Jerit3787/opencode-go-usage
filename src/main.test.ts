@@ -127,6 +127,44 @@ it("caches a success per server and credential, and force bypasses it", async ()
   expect(calls.filter((url) => url === USAGE_URL)).toHaveLength(2)
 })
 
+it("prefers the signed-in Console usage limits", async () => {
+  const consoleBody = {
+    data: {
+      workspace: {
+        id: "org_1",
+        name: "Personal",
+        usageURL: "https://opencode.ai/console/org_1/activity/overview",
+      },
+      go: {
+        rolling: { percent: 10, limited: false, resetsAt: Date.now() + 1000 },
+        weekly: { percent: 22, limited: false, resetsAt: Date.now() + 2000 },
+        monthly: { percent: 83, limited: false, resetsAt: Date.now() + 3000 },
+      },
+      budgets: [],
+    },
+  }
+  const calls: string[] = []
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string | URL | Request) => {
+      const url = String(input)
+      calls.push(url)
+      if (url.includes("/api/experimental/usage/limits")) {
+        return new Response(JSON.stringify(consoleBody), { status: 200 })
+      }
+      throw new Error(`unexpected request ${url}`)
+    }),
+  )
+  const get = setup()
+  const result = await get.get({ server: "sidecar" })
+  expect(result.state).toBe("ok")
+  if (result.state === "ok") {
+    expect(result.data.windows.monthly.percent).toBe(83)
+    expect(result.data.workspace?.name).toBe("Personal")
+  }
+  expect(calls.filter((url) => url.includes("/api/credential"))).toHaveLength(0)
+})
+
 it("keeps the last good reading when a forced refresh fails", async () => {
   let fail = false
   vi.stubGlobal(

@@ -16,6 +16,13 @@ const DataSchema = Schema.Struct({
   updatedAt: Schema.Number,
   stale: Schema.Boolean,
   error: Schema.optional(Schema.String),
+  workspace: Schema.optional(
+    Schema.Struct({
+      id: Schema.String,
+      name: Schema.optional(Schema.String),
+      usageURL: Schema.String,
+    }),
+  ),
 })
 
 const ResultSchema = Schema.Union([

@@ -16,6 +16,7 @@ import {
   modelDisplayName,
   noticeFor,
   parseStatsModels,
+  parseUsageLimits,
   parseUsageResponse,
   pillView,
   pruneOldest,
@@ -38,6 +39,40 @@ const body = {
     monthly: { status: "ok", percent: 78, resetsAt: "2026-11-22T04:08:19.000Z" },
   },
 }
+
+it("parses the Console workspace usage limits", () => {
+  const data = parseUsageLimits(
+    {
+      data: {
+        workspace: {
+          id: "org_1",
+          name: "Personal",
+          usageURL: "https://opencode.ai/console/org_1/activity/overview",
+        },
+        go: {
+          rolling: { percent: 10, limited: false, resetsAt: NOW + 1000 },
+          weekly: { percent: 22, limited: false, resetsAt: NOW + 2000 },
+          monthly: { percent: 83, limited: false, resetsAt: NOW + 3000 },
+        },
+        budgets: [],
+      },
+    },
+    NOW,
+  )
+
+  expect(data).not.toBeNull()
+  expect(data!.windows.monthly).toEqual({
+    percent: 83,
+    limited: false,
+    resetsAt: NOW + 3000,
+  })
+  expect(data!.workspace).toEqual({
+    id: "org_1",
+    name: "Personal",
+    usageURL: "https://opencode.ai/console/org_1/activity/overview",
+  })
+  expect(parseUsageLimits({ data: null }, NOW)).toBeNull()
+})
 
 it("parses the live response shape", () => {
   const data = parseUsageResponse(body, NOW)

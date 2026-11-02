@@ -10,6 +10,7 @@ import {
   cacheKey,
   cacheTtl,
   dataOf,
+  parseUsageLimits,
   pruneOldest,
   withStaleData,
   type UsageData,
@@ -62,6 +63,22 @@ export const main: Plugin.MainSetup = (ctx) => {
     }
   }
 
+  const fetchConsoleLimits = async (endpoint: {
+    url: string
+    headers: Readonly<Record<string, string>>
+  }): Promise<UsageData | null> => {
+    try {
+      const response = await fetch(new URL("/api/experimental/usage/limits", endpoint.url), {
+        headers: endpoint.headers,
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      })
+      if (!response.ok) return null
+      return parseUsageLimits(await response.json(), Date.now())
+    } catch {
+      return null
+    }
+  }
+
   ctx.provide(UsageIpc, {
     async get(input): Promise<UsageResult> {
       const serverID = input.server ?? "sidecar"
@@ -80,8 +97,31 @@ export const main: Plugin.MainSetup = (ctx) => {
         )
       }
 
-      let choice: CredentialChoice | undefined
       const envKey = process.env.OPENCODE_GO_API_KEY?.trim()
+
+      if (!envKey) {
+        const consoleKey = cacheKey(serverID, "console")
+        const cachedConsole = cache.get(consoleKey)
+        if (
+          !input.force &&
+          cachedConsole &&
+          Date.now() - cachedConsole.at < cacheTtl(cachedConsole.result)
+        ) {
+          return respond(cachedConsole.result)
+        }
+
+        const consoleData = await fetchConsoleLimits(endpoint)
+        if (consoleData) {
+          const result: UsageResult = { state: "ok", data: consoleData }
+          lastGoodByServer.set(serverID, consoleData)
+          pruneOldest(lastGoodByServer, MAX_ENTRIES)
+          cache.set(consoleKey, { at: Date.now(), result, lastGood: consoleData })
+          pruneOldest(cache, MAX_ENTRIES)
+          return respond(result)
+        }
+      }
+
+      let choice: CredentialChoice | undefined
 
       if (envKey) {
         choice = {
