@@ -28,6 +28,8 @@ const MODEL_COLORS = [
 function ModelRow(props: {
   model: ModelUsage
   allowance: number | undefined
+  published: number | undefined
+  effective: boolean
   color: string
 }) {
   const monthlyPct = () =>
@@ -76,8 +78,15 @@ function ModelRow(props: {
           </span>
           <span style={{ "font-size": "11px", color: "var(--v2-text-text-muted)" }}>
             {formatUSD(props.model.monthlyCost)} this period
-            {props.allowance ? ` · ${formatUSD(props.allowance)}/mo allowance` : ""}
+            {props.allowance
+              ? ` · ${formatUSD(props.allowance)}/mo ${props.effective ? "effective" : "allowance"}`
+              : ""}
           </span>
+          <Show when={props.effective && props.published !== undefined}>
+            <span style={{ "font-size": "11px", color: "var(--v2-text-text-faint)" }}>
+              Published {formatUSD(props.published!)}
+            </span>
+          </Show>
         </div>
         <div style={{ display: "grid", gap: "3px", "text-align": "right" }}>
           <span style={{ "font-size": "13px", "font-weight": 600, color: color() }}>
@@ -151,16 +160,27 @@ export function ModelBreakdown(props: { state: UsageState; ctx: Context; ui: Ui 
     }
     return allowances
   }
-  const totalMonthly = () => totalModelPercent(models(), overrides(), "monthly")
-  const totalWeekly = () => totalModelPercent(models(), overrides(), "weekly")
-  const totalRolling = () => totalModelPercent(models(), overrides(), "rolling")
+  const effectiveAllowances = () => {
+    const positive = models().filter((model) => model.monthlyCost > 0)
+    const server = serverMonthly()
+    if (positive.length !== 1 || server <= 0) return {}
+    const model = positive[0]
+    return { [model.modelID]: model.monthlyCost / (server / 100) }
+  }
+  const allowances = () => ({ ...effectiveAllowances(), ...overrides() })
+  const totalMonthly = () => totalModelPercent(models(), allowances(), "monthly")
+  const totalWeekly = () => totalModelPercent(models(), allowances(), "weekly")
+  const totalRolling = () => totalModelPercent(models(), allowances(), "rolling")
   const totalTone = () => usageTone(totalMonthly(), false)
   const contributions = () =>
     models().map((model, index) => ({
       model,
       percent:
-        windowPercent(model.monthlyCost, modelAllowance(model.modelID, overrides()), "monthly") ??
-        0,
+        windowPercent(
+          model.monthlyCost,
+          allowances()[model.modelID] ?? modelAllowance(model.modelID),
+          "monthly",
+        ) ?? 0,
       color: MODEL_COLORS[index % MODEL_COLORS.length],
     }))
   const modelError = () => {
@@ -238,7 +258,12 @@ export function ModelBreakdown(props: { state: UsageState; ctx: Context; ui: Ui 
           {(model, index) => (
             <ModelRow
               model={model}
-              allowance={modelAllowance(model.modelID, overrides())}
+              allowance={allowances()[model.modelID] ?? modelAllowance(model.modelID)}
+              published={modelAllowance(model.modelID)}
+              effective={
+                effectiveAllowances()[model.modelID] !== undefined &&
+                overrides()[model.modelID] === undefined
+              }
               color={MODEL_COLORS[index() % MODEL_COLORS.length]}
             />
           )}
@@ -350,12 +375,20 @@ export function ModelBreakdown(props: { state: UsageState; ctx: Context; ui: Ui 
           monthly allowance is exhausted.
         </span>
         <span>
+          Percentages use recorded cost, not token count. Free or promotional usage can
+          show many tokens at $0 and contribute 0%.
+        </span>
+        <span>
           Local rows use this server's sessions; the server meters above include all
           clients and machines.
         </span>
         <span>
-          Published Go allowances are used; set the plugin's `allowances` option to
-          override a model.
+          The effective allowance is inferred from the server monthly percentage and this
+          server's spend when one model is active. If your console shows a different
+          allowance, set it in the plugin's `allowances` option.
+        </span>
+        <span>
+          Published Go allowances are used for the remaining models.
         </span>
         <button
           type="button"
