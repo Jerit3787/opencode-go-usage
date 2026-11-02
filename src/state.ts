@@ -1,14 +1,22 @@
 import { createEffect, createSignal, onCleanup } from "solid-js"
 import type { Context } from "@opencode/plugin/gui"
 import { UsageIpc } from "./contract"
-import { dataOf, withStaleData, type UsageResult } from "./usage"
+import {
+  dataOf,
+  withStaleData,
+  type ModelAnalyticsResult,
+  type UsageResult,
+} from "./usage"
 
 export type UsageState = {
   result: () => UsageResult | undefined
   loading: () => boolean
   initialLoading: () => boolean
+  models: () => ModelAnalyticsResult | undefined
+  modelsLoading: () => boolean
   server: () => string | undefined
   refresh(opts?: { force?: boolean; server?: string }): Promise<void>
+  refreshModels(opts?: { force?: boolean; server?: string }): Promise<void>
   openSettings(): void
   connect(): void
   openBuiltinUsage(): void
@@ -19,6 +27,8 @@ export function createUsageState(ctx: Context): UsageState {
   const [rawResult, setResult] = createSignal<UsageResult>()
   const [resultServer, setResultServer] = createSignal<string>()
   const [settledServer, setSettledServer] = createSignal<string>()
+  const [models, setModels] = createSignal<ModelAnalyticsResult>()
+  const [modelsLoading, setModelsLoading] = createSignal(false)
   const [loading, setLoading] = createSignal(false)
   const [server, setServer] = createSignal<string>()
   let generation = 0
@@ -63,6 +73,31 @@ export function createUsageState(ctx: Context): UsageState {
     }
   }
 
+  const refreshModels = async (opts: { force?: boolean; server?: string } = {}) => {
+    const target = opts.server ?? server() ?? "sidecar"
+    const current = resultServer() === target ? dataOf(rawResult()) : undefined
+    const input: {
+      server?: string
+      monthlyResetsAt?: number
+      monthlyPercent?: number
+      force?: boolean
+    } = { server: target }
+    if (current) {
+      input.monthlyResetsAt = current.windows.monthly.resetsAt
+      input.monthlyPercent = current.windows.monthly.percent
+    }
+    if (opts.force) input.force = true
+
+    setModelsLoading(true)
+    try {
+      setModels(await ctx.main(UsageIpc).models(input))
+    } catch {
+      setModels({ state: "error", message: "Model usage couldn't be loaded." })
+    } finally {
+      setModelsLoading(false)
+    }
+  }
+
   const initial = ctx.sessions.current()?.server.id
   if (initial) setServer(initial)
   void refresh({ server: initial })
@@ -82,8 +117,11 @@ export function createUsageState(ctx: Context): UsageState {
     result: visible,
     loading,
     initialLoading: () => loading() && settledServer() !== (server() ?? "sidecar"),
+    models,
+    modelsLoading,
     server,
     refresh,
+    refreshModels,
     openSettings: () => ctx.layout.settings("opencode-go-usage"),
     connect: () => {
       if (!ctx.commands.run("provider.connect")) {

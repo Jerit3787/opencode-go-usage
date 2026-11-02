@@ -6,14 +6,24 @@ import {
   clampPercent,
   dataOf,
   formatPercent,
+  formatPercent1,
   formatReset,
+  formatTokens,
+  formatUSD,
   formatUpdated,
+  impliedAllowance,
+  mergeModelUsage,
+  modelAllowance,
+  modelDisplayName,
   noticeFor,
+  parseStatsModels,
   parseUsageResponse,
   pillView,
   pruneOldest,
   ringOffset,
   statusCopy,
+  subtractMonth,
+  windowPercent,
   tightestWindow,
   usageTone,
   withStaleData,
@@ -178,6 +188,69 @@ it("prunes the oldest map entries", () => {
   ])
   pruneOldest(map, 2)
   expect([...map.keys()]).toEqual(["b", "c"])
+})
+
+it("parses and merges per-model session stats", () => {
+  const body = {
+    data: {
+      models: [
+        {
+          model: { id: "deepseek-v4.1-flash", providerID: "opencode-go", variant: "max" },
+          cost: 9.3,
+          tokens: { input: 100, output: 50, reasoning: 25, cache: { read: 1000, write: 0 } },
+        },
+        {
+          model: { id: "deepseek-v4.1-flash", providerID: "opencode-go", variant: "default" },
+          cost: 3.2,
+          tokens: { input: 10, output: 5, reasoning: 2, cache: { read: 100, write: 0 } },
+        },
+        {
+          model: { id: "glm-5.3", providerID: "afiqstore", variant: "default" },
+          cost: 4,
+          tokens: { input: 1, output: 1, reasoning: 1, cache: { read: 1, write: 1 } },
+        },
+      ],
+    },
+  }
+
+  const parsed = parseStatsModels(body)
+  expect(parsed).toHaveLength(3)
+  expect(parsed[0]).toEqual({
+    providerID: "opencode-go",
+    modelID: "deepseek-v4.1-flash",
+    cost: 9.3,
+    tokens: 1175,
+  })
+
+  const merged = mergeModelUsage(parsed, parsed, parsed)
+  expect(merged).toHaveLength(1)
+  expect(merged[0]).toMatchObject({
+    modelID: "deepseek-v4.1-flash",
+    name: "DeepSeek V4.1 Flash",
+    monthlyCost: 12.5,
+    weeklyCost: 12.5,
+    rollingCost: 12.5,
+    monthlyTokens: 1292,
+  })
+})
+
+it("calculates per-model window percentages and allowances", () => {
+  expect(windowPercent(10, 100, "rolling")).toBe(50)
+  expect(windowPercent(25, 100, "weekly")).toBe(50)
+  expect(windowPercent(50, 100, "monthly")).toBe(50)
+  expect(windowPercent(50, undefined, "monthly")).toBeUndefined()
+  expect(modelAllowance("deepseek-v4.1-flash")).toBe(100)
+  expect(modelAllowance("deepseek-v4.1-flash", { "deepseek-v4.1-flash": 16 })).toBe(16)
+  expect(modelAllowance("unknown")).toBeUndefined()
+  expect(modelDisplayName("deepseek-v4-pro")).toBe("DeepSeek V4 Pro")
+  expect(modelDisplayName("some-new-model")).toBe("Some New Model")
+  expect(impliedAllowance(12.587, 83)).toBeCloseTo(15.16, 1)
+  expect(subtractMonth(Date.UTC(2026, 10, 22))).toBe(Date.UTC(2026, 9, 22))
+  expect(subtractMonth(Date.UTC(2026, 2, 31))).toBe(Date.UTC(2026, 1, 28))
+  expect(formatUSD(12.587)).toBe("$12.59")
+  expect(formatUSD(0.0016)).toBe("$0.0016")
+  expect(formatPercent1(12.58)).toBe("12.6%")
+  expect(formatTokens(1_200_000)).toBe("1.2M")
 })
 
 it("maps state actions and notices, including stale data", () => {

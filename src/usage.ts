@@ -30,6 +30,99 @@ export type StatusCopy = {
   action: "connect" | "console" | "usage" | "retry" | "none"
 }
 
+export type ModelUsage = {
+  providerID: string
+  modelID: string
+  name: string
+  monthlyCost: number
+  weeklyCost: number
+  rollingCost: number
+  monthlyTokens: number
+}
+
+export type ModelAnalytics = {
+  models: readonly ModelUsage[]
+  monthlyFrom: number
+  monthlyTo: number
+  weeklyFrom: number
+  rollingFrom: number
+  totalMonthlyCost: number
+  serverMonthlyPercent: number
+}
+
+export type ModelAnalyticsResult =
+  | { state: "ok"; data: ModelAnalytics }
+  | { state: "error"; message: string }
+
+export const GO_MONTHLY_ALLOWANCES: Record<string, number> = {
+  "glm-5.3-flash": 60,
+  "glm-5.3": 15,
+  "glm-5.2": 60,
+  "kimi-k3.1-pro": 15,
+  "kimi-k3": 15,
+  "kimi-k2.7-code": 60,
+  "longcat-2.0": 60,
+  "step-5-preview": 15,
+  "mimo-v2.6-flash": 60,
+  "mimo-v2.6-pro": 15,
+  "mimo-v2.5": 60,
+  "mimo-v2.5-pro": 15,
+  "minimax-m3.1-flash": 20,
+  "minimax-m3": 60,
+  "muse-spark-1.3-contributor": 60,
+  "muse-spark-1.2-contributor": 60,
+  "qwen3.8-max": 15,
+  "qwen3.8-flash": 30,
+  "qwen3.7-plus": 60,
+  "deepseek-v4.1-flash": 100,
+  "deepseek-v4-pro": 16,
+  "hy4-preview": 30,
+  "hy3": 60,
+  "grok-4.7": 15,
+  "gpt-6-luna": 15,
+  "gpt-5.6-luna": 15,
+  "claude-haiku-5-5": 15,
+  "gemini-4-argon": 30,
+}
+
+const GO_MODEL_NAMES: Record<string, string> = {
+  "glm-5.3-flash": "GLM 5.3 Flash",
+  "glm-5.3": "GLM 5.3",
+  "glm-5.2": "GLM 5.2",
+  "kimi-k3.1-pro": "Kimi K3.1 Pro",
+  "kimi-k3": "Kimi K3",
+  "kimi-k2.7-code": "Kimi K2.7 Code",
+  "longcat-2.0": "LongCat 2.0",
+  "step-5-preview": "Step 5 Preview",
+  "mimo-v2.6-flash": "MiMo V2.6 Flash",
+  "mimo-v2.6-pro": "MiMo V2.6 Pro",
+  "mimo-v2.5": "MiMo V2.5",
+  "mimo-v2.5-pro": "MiMo V2.5 Pro",
+  "minimax-m3.1-flash": "MiniMax M3.1 Flash",
+  "minimax-m3": "MiniMax M3",
+  "muse-spark-1.3-contributor": "Muse Spark 1.3 Contributor",
+  "muse-spark-1.2-contributor": "Muse Spark 1.2 Contributor",
+  "qwen3.8-max": "Qwen3.8 Max",
+  "qwen3.8-flash": "Qwen3.8 Flash",
+  "qwen3.7-plus": "Qwen3.7 Plus",
+  "deepseek-v4.1-flash": "DeepSeek V4.1 Flash",
+  "deepseek-v4-pro": "DeepSeek V4 Pro",
+  "hy4-preview": "Hy4 Preview",
+  "hy3": "Hy3",
+  "grok-4.7": "Grok 4.7",
+  "gpt-6-luna": "GPT 6 Luna",
+  "gpt-5.6-luna": "GPT 5.6 Luna",
+  "claude-haiku-5-5": "Claude Haiku 5.5",
+  "gemini-4-argon": "Gemini 4 Argon",
+}
+
+export type StatsModel = {
+  providerID: string
+  modelID: string
+  cost: number
+  tokens: number
+}
+
 export type FormatOptions = {
   locale?: string
   timeZone?: string
@@ -272,6 +365,155 @@ export function pruneOldest<K, V>(map: Map<K, V>, max: number): void {
 export function ringOffset(percent: number, size: number, stroke: number): number {
   const radius = (size - stroke) / 2
   return 2 * Math.PI * radius * (1 - clampPercent(percent) / 100)
+}
+
+export function modelDisplayName(modelID: string): string {
+  const known = GO_MODEL_NAMES[modelID]
+  if (known) return known
+  return modelID
+    .split("-")
+    .map((part) => (part.length > 0 ? part[0].toUpperCase() + part.slice(1) : part))
+    .join(" ")
+}
+
+export function modelAllowance(
+  modelID: string,
+  overrides?: Record<string, number>,
+): number | undefined {
+  const override = overrides?.[modelID]
+  if (typeof override === "number" && Number.isFinite(override) && override > 0) {
+    return override
+  }
+  return GO_MONTHLY_ALLOWANCES[modelID]
+}
+
+function countTokens(tokens: Record<string, unknown>): number {
+  const number = (value: unknown): number =>
+    typeof value === "number" && Number.isFinite(value) ? value : 0
+  const cache = isRecord(tokens.cache) ? tokens.cache : {}
+  return (
+    number(tokens.input) +
+    number(tokens.output) +
+    number(tokens.reasoning) +
+    number(cache.read) +
+    number(cache.write)
+  )
+}
+
+export function parseStatsModels(body: unknown): StatsModel[] {
+  const root = isRecord(body) && isRecord(body.data) ? body.data : body
+  if (!isRecord(root) || !Array.isArray(root.models)) return []
+
+  const models: StatsModel[] = []
+  for (const entry of root.models) {
+    if (!isRecord(entry) || !isRecord(entry.model)) continue
+    const modelID = entry.model.id
+    const providerID = entry.model.providerID
+    if (typeof modelID !== "string" || typeof providerID !== "string") continue
+    const cost =
+      typeof entry.cost === "number" && Number.isFinite(entry.cost) ? entry.cost : 0
+    const tokens = isRecord(entry.tokens) ? countTokens(entry.tokens) : 0
+    models.push({ providerID, modelID, cost, tokens })
+  }
+  return models
+}
+
+export function mergeModelUsage(
+  monthly: StatsModel[],
+  weekly: StatsModel[],
+  rolling: StatsModel[],
+): ModelUsage[] {
+  const models = new Map<string, ModelUsage>()
+
+  const add = (entries: StatsModel[], range: "monthly" | "weekly" | "rolling") => {
+    for (const entry of entries) {
+      if (entry.providerID !== "opencode-go") continue
+      const key = `${entry.providerID}/${entry.modelID}`
+      let model = models.get(key)
+      if (!model) {
+        model = {
+          providerID: entry.providerID,
+          modelID: entry.modelID,
+          name: modelDisplayName(entry.modelID),
+          monthlyCost: 0,
+          weeklyCost: 0,
+          rollingCost: 0,
+          monthlyTokens: 0,
+        }
+        models.set(key, model)
+      }
+      if (range === "monthly") {
+        model.monthlyCost += entry.cost
+        model.monthlyTokens += entry.tokens
+      } else if (range === "weekly") {
+        model.weeklyCost += entry.cost
+      } else {
+        model.rollingCost += entry.cost
+      }
+    }
+  }
+
+  add(monthly, "monthly")
+  add(weekly, "weekly")
+  add(rolling, "rolling")
+
+  return [...models.values()].sort(
+    (left, right) => right.monthlyCost - left.monthlyCost || left.name.localeCompare(right.name),
+  )
+}
+
+export function windowPercent(
+  cost: number,
+  allowance: number | undefined,
+  kind: WindowKey,
+): number | undefined {
+  if (!allowance || allowance <= 0) return undefined
+  const fraction = kind === "rolling" ? 0.2 : kind === "weekly" ? 0.5 : 1
+  const limit = allowance * fraction
+  if (limit <= 0) return undefined
+  return (cost / limit) * 100
+}
+
+export function impliedAllowance(
+  totalCost: number,
+  serverMonthlyPercent: number,
+): number | undefined {
+  if (!(totalCost > 0) || !(serverMonthlyPercent > 0)) return undefined
+  return totalCost / (serverMonthlyPercent / 100)
+}
+
+export function formatUSD(value: number): string {
+  if (!Number.isFinite(value)) return "$0.00"
+  if (value > 0 && value < 0.01) return `$${value.toFixed(4)}`
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value)
+}
+
+export function formatPercent1(value: number): string {
+  return `${value.toFixed(1)}%`
+}
+
+export function formatTokens(value: number): string {
+  return new Intl.NumberFormat("en-US", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(value)
+}
+
+export function subtractMonth(ms: number): number {
+  const date = new Date(ms)
+  const day = date.getUTCDate()
+  date.setUTCDate(1)
+  date.setUTCMonth(date.getUTCMonth() - 1)
+  const days = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0),
+  ).getUTCDate()
+  date.setUTCDate(Math.min(day, days))
+  return date.getTime()
 }
 
 export function actionLabel(action: StatusCopy["action"]): string {

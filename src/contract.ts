@@ -18,6 +18,31 @@ const DataSchema = Schema.Struct({
   error: Schema.optional(Schema.String),
 })
 
+const ModelUsageSchema = Schema.Struct({
+  providerID: Schema.String,
+  modelID: Schema.String,
+  name: Schema.String,
+  monthlyCost: Schema.Number,
+  weeklyCost: Schema.Number,
+  rollingCost: Schema.Number,
+  monthlyTokens: Schema.Number,
+})
+
+const ModelAnalyticsSchema = Schema.Struct({
+  models: Schema.Array(ModelUsageSchema),
+  monthlyFrom: Schema.Number,
+  monthlyTo: Schema.Number,
+  weeklyFrom: Schema.Number,
+  rollingFrom: Schema.Number,
+  totalMonthlyCost: Schema.Number,
+  serverMonthlyPercent: Schema.Number,
+})
+
+const ModelAnalyticsResultSchema = Schema.Union([
+  Schema.Struct({ state: Schema.Literal("ok"), data: ModelAnalyticsSchema }),
+  Schema.Struct({ state: Schema.Literal("error"), message: Schema.String }),
+])
+
 const ResultSchema = Schema.Union([
   Schema.Struct({ state: Schema.Literal("ok"), data: DataSchema }),
   Schema.Struct({ state: Schema.Literal("signed-out") }),
@@ -49,6 +74,15 @@ export const UsageIpc = Ipc.define({
         force: Schema.optional(Schema.Boolean),
       }),
       output: ResultSchema,
+    },
+    models: {
+      input: Schema.Struct({
+        server: Schema.optional(Schema.String),
+        monthlyResetsAt: Schema.optional(Schema.Number),
+        monthlyPercent: Schema.optional(Schema.Number),
+        force: Schema.optional(Schema.Boolean),
+      }),
+      output: ModelAnalyticsResultSchema,
     },
   },
 })

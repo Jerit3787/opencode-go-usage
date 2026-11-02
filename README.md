@@ -27,6 +27,44 @@ The response contains `rolling`, `weekly`, and `monthly` percentages and reset t
 
 The built-in OpenCode Usage page depends on a Console workspace sign-in. This plugin is for the API-key path. If the active credential is Console/OAuth only, the popover points you to the built-in Usage page instead of showing a false "not connected" state.
 
+## Model breakdown
+
+The Go usage endpoint returns one set of window meters. The **Go usage** settings page also reads the local OpenCode server's session stats and shows each Go model's usage for the current allowance period:
+
+- local spend, token count, and the model's monthly allowance
+- the model's share of its 5-hour, weekly, and monthly allowances
+- a server-implied allowance for the local spend when the server monthly meter is available
+
+How the percentages are calculated:
+
+```text
+monthly % = model spend this period      ÷ model monthly allowance
+5-hour %  = model spend in the last 5h   ÷ (20% of the monthly allowance)
+weekly %  = model spend in the last 7d   ÷ (50% of the monthly allowance)
+```
+
+Allowances are **per model** and do not transfer. Each percentage stands on its own: two models at 50% are each half-used, not 100% of one combined monthly limit. The server meters at the top of the page are separate and can include other machines or clients.
+
+Published Go allowances are used as defaults. If your workspace has different limits, override them in the plugin options. This requires the object form of the plugin entry:
+
+```jsonc
+{
+  "plugins": [
+    {
+      "package": "/absolute/path/to/opencode-go-usage",
+      "options": {
+        "allowances": {
+          "deepseek-v4.1-flash": 100,
+          "deepseek-v4-pro": 16
+        }
+      }
+    }
+  ]
+}
+```
+
+The settings page shows a **server-implied allowance for local spend** when both the server monthly meter and the local spend are available. If that differs from the published table, use your workspace's actual value in the override.
+
 ## Install
 
 Clone and build the plugin:
@@ -64,9 +102,10 @@ Remove the plugin directory entry from `plugins` in `~/.config/opencode/opencode
 - The API key is read in the Electron main process.
 - It is used only for the Go usage GET.
 - It is never returned to the window, written to plugin storage, or logged.
-- The plugin sends no telemetry, prompts, code, or session data.
-- The only network requests are the local OpenCode credential read and the Go usage GET.
-- Only percentages and reset times are displayed.
+- The plugin sends no telemetry, prompts, code, or session content.
+- The only requests are the local OpenCode credential read, the local session-stats read, and the Go usage GET.
+- The model breakdown reads only model IDs, costs, and token counts; it never reads prompts or message content.
+- Only percentages, reset times, model spend, and token counts are displayed.
 
 ## Development
 

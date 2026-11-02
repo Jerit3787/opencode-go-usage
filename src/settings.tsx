@@ -1,6 +1,8 @@
 import { onMount, Show } from "solid-js"
 import type { Context } from "@opencode/plugin/gui"
+import { cardStyle, rowStyle } from "./layout"
 import { MeterRow } from "./meter"
+import { ModelBreakdown } from "./model-breakdown"
 import { Ring } from "./ring"
 import { InlineNotice, StatusBlock } from "./status"
 import type { UsageState } from "./state"
@@ -14,19 +16,6 @@ import {
   usageColor,
   usageTone,
 } from "./usage"
-
-const cardStyle = {
-  background: "var(--v2-background-bg-layer-01)",
-  "box-shadow": "inset 0 0 0 0.5px var(--v2-border-border-muted)",
-  "border-radius": "8px",
-  "padding-inline": "20px",
-}
-
-const rowStyle = {
-  "border-top": "0.5px solid var(--v2-border-border-muted)",
-  "padding-block": "16px",
-  "padding-inline": "16px",
-}
 
 export function UsageSettings(props: { state: UsageState; ctx: Context }) {
   const ui = props.ctx.ui
@@ -68,6 +57,7 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
   }
 
   onMount(() => {
+    void props.state.refreshModels()
     if (props.state.loading()) return
     const current = dataOf(props.state.result())
     if (!current) void props.state.refresh()
@@ -125,8 +115,11 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
           <ui.Button
             variant="neutral"
             icon="refresh"
-            busy={props.state.loading()}
-            onClick={() => void props.state.refresh({ force: true })}
+            busy={props.state.loading() || props.state.modelsLoading()}
+            onClick={() => {
+              void props.state.refresh({ force: true })
+              void props.state.refreshModels({ force: true })
+            }}
           >
             Refresh
           </ui.Button>
@@ -274,6 +267,8 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
             </div>
           )}
         </Show>
+
+        <ModelBreakdown state={props.state} ctx={props.ctx} ui={ui} />
       </div>
     </div>
   )

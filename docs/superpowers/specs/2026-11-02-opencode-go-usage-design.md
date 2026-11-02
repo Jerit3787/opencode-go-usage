@@ -204,6 +204,28 @@ Updated 2:32 PM                          See all →
 - **Connect** runs `ctx.commands.run("provider.connect")`; if it returns false, show a toast telling the user to run `/connect`.
 - Same signed-out/console-only/rejected/no-plan/unavailable/error states as the card.
 
+### Model breakdown
+
+The settings page also shows a per-model analytics card. The Go usage endpoint only exposes aggregate meters, so this card uses the local OpenCode server's session statistics (`/api/experimental/session/stats`, `tools=none`) for three ranges:
+
+- monthly: `resetsAt - 1 month` to now
+- weekly: last 7 days
+- rolling: last 5 hours
+
+The stats are filtered to `providerID = "opencode-go"`, merged across model variants, and converted with the published Go monthly allowance table:
+
+```text
+monthly % = model spend this period     ÷ monthly allowance
+5-hour %  = model spend in the last 5h  ÷ (20% of the monthly allowance)
+weekly %  = model spend in the last 7d  ÷ (50% of the monthly allowance)
+```
+
+The card shows model name, local spend, token count, monthly allowance, monthly/weekly/5-hour share, and a monthly bar. It also shows a server-implied allowance for local spend (`local monthly spend ÷ server monthly percent`) when both values are present.
+
+Allowances are per model and do not transfer. The card must say that per-model percentages are independent and must not be added into a single monthly limit; the server meters are separate and may include other clients or machines.
+
+Published allowances are defaults. The plugin option `allowances` is a `Record<modelID, number>` override for workspaces with different limits. The data source is local session statistics: model IDs, costs, and token counts only, never prompts or message content.
+
 ### States
 
 | State | Pill | Card/page |
