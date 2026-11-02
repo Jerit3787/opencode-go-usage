@@ -14,6 +14,13 @@ it("selects the first active Go key", () => {
     kind: "key",
     key: "oc_sk_b",
     credentialID: "b",
+    source: "credential",
+  })
+})
+
+it("ignores malformed credential entries", () => {
+  expect(selectGoCredential([null, { id: "x" }, { id: "y", value: null }])).toEqual({
+    kind: "none",
   })
 })
 
@@ -37,6 +44,7 @@ it("reads the auth.json fallback", () => {
     kind: "key",
     key: "oc_sk_file",
     credentialID: "auth.json",
+    source: "auth",
   })
   expect(readAuthFile({})).toEqual({ kind: "none" })
 })

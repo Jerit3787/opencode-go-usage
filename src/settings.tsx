@@ -1,4 +1,4 @@
-import { Show } from "solid-js"
+import { onMount, Show } from "solid-js"
 import type { Context } from "@opencode/plugin/gui"
 import { MeterRow } from "./meter"
 import { Ring } from "./ring"
@@ -35,6 +35,13 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
     const current = data()
     return current ? formatUpdated(current.updatedAt, Date.now()) : "Waiting for usage"
   }
+
+  onMount(() => {
+    if (props.state.loading()) return
+    const current = dataOf(props.state.result())
+    if (!current) void props.state.refresh()
+    else if (Date.now() - current.updatedAt > 30_000) void props.state.refresh({ force: true })
+  })
 
   const run = () => {
     switch (copy().action) {

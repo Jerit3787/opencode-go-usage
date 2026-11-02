@@ -11,7 +11,11 @@ export function usagePill(ctx: Context, state: UsageState): ComposerPill {
     order: 0,
     show: () => {
       const view = pillView(state.result())
-      return { label: view.label, title: USAGE_TITLE, tone: view.tone }
+      return {
+        label: view.stale ? `${view.label} ·` : view.label,
+        title: USAGE_TITLE,
+        tone: view.tone,
+      }
     },
     menu: (input) => (
       <UsageCard

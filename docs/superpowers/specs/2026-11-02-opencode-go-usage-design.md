@@ -222,11 +222,11 @@ Updated 2:32 PM                          See all →
 ## Refresh and caching
 
 - Window polls every 60 seconds while the plugin is loaded.
-- Main caches success for 60 seconds and failures for 45 seconds, keyed by server id and credential id.
+- Main caches success for 45 seconds and failures for 45 seconds, keyed by server id and credential id. The success TTL is shorter than the poll so each poll performs a real fetch.
 - Manual **Refresh** and **Retry** call `get({ force: true })`, which bypasses both caches.
-- Opening the settings page triggers a refresh if the reading is older than 30 seconds.
+- Opening the popover or settings page triggers a forced refresh if the reading is older than 30 seconds.
 - Reset countdowns are computed in the window from `resetsAt`; no extra network calls.
-- Switching accounts on the same server invalidates the cache because the credential id changes.
+- Switching accounts on the same server invalidates the cache because the credential id changes. Auth-file and environment keys use a one-way key fingerprint, never the key itself.
 
 ## Security and privacy
 

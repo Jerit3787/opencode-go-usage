@@ -981,6 +981,22 @@ git commit -m "docs: add usage viewer README"
 
 ---
 
+## Post-Review Corrections (2026-11-02)
+
+The whole-branch review found wrong-account and stale-state risks that the first pass inherited from this plan. The implementation now differs from the task snippets above in these ways:
+
+- Credential resolution checks `OPENCODE_GO_API_KEY` first and uses a one-way fingerprint for its cache id.
+- `auth.json` is a fallback only for the local `sidecar` server; a remote server's credential failure is `unavailable`, never a local account's reading.
+- Credential responses must contain an array; malformed responses are `unavailable`, not `signed-out`, and malformed entries are skipped.
+- The window state is tagged by server and sequenced with a request generation. Switching servers hides the previous reading immediately, and an older response cannot overwrite a newer one. A request rejection keeps the last reading for that same server.
+- The main process keeps last-good data per server for endpoint/credential failures, and the window catch merges last-good data.
+- Both fetches have a 10-second abort timeout; concurrent requests for the same server + credential share one in-flight request.
+- The success cache is 45 seconds, below the 60-second poll. The card and settings page force a refresh when their reading is older than 30 seconds.
+- Stale readings are marked in the pill (`·`) and with a muted ring; `MeterRow` and `Ring` use reactive memos for tone, color, width, and arc.
+- Tests now cover remote fallback isolation, invalid credential data, auth-key cache invalidation, env-key resolution, in-flight coalescing, last-good retention, request timeouts, stale pill state, and out-of-order server responses (28 tests).
+
+Deferred minors from the review: same-day weekly/monthly reset copy, “Limit reached” row copy, loader flicker on background refresh, auth-file fallback on a valid empty credential response, cache-map housekeeping, sanitized diagnostics, and the hardcoded README install path.
+
 ## Self-Review Notes
 
 - **Spec coverage:** ring pill (Task 4), popover card (Task 5), settings page (Task 6), states (Task 7), credential/main/cache (Tasks 2–3), tests/docs (Tasks 1, 8).

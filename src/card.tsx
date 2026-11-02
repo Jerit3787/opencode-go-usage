@@ -14,8 +14,10 @@ export function UsageCard(props: {
   const ui = props.ctx.ui
 
   onMount(() => {
+    if (props.state.loading()) return
     const data = dataOf(props.state.result())
-    if (!data || Date.now() - data.updatedAt > 30_000) void props.state.refresh()
+    if (!data) void props.state.refresh()
+    else if (Date.now() - data.updatedAt > 30_000) void props.state.refresh({ force: true })
   })
 
   const data = () => dataOf(props.state.result())

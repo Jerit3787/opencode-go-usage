@@ -51,7 +51,9 @@ export default Plugin.define({
       root.style.setProperty("--oc-go-usage-percent", String(clampPercent(window.percent)))
       root.style.setProperty(
         "--oc-go-usage-color",
-        usageColor(usageTone(window.percent, window.limited)),
+        data.stale
+          ? "var(--v2-text-text-muted)"
+          : usageColor(usageTone(window.percent, window.limited)),
       )
     })
 

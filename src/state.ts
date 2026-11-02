@@ -1,7 +1,7 @@
 import { createEffect, createSignal, onCleanup } from "solid-js"
 import type { Context } from "@opencode/plugin/gui"
 import { UsageIpc } from "./contract"
-import type { UsageResult } from "./usage"
+import { dataOf, withStaleData, type UsageResult } from "./usage"
 
 export type UsageState = {
   result: () => UsageResult | undefined
@@ -15,24 +15,53 @@ export type UsageState = {
 }
 
 export function createUsageState(ctx: Context): UsageState {
-  const [result, setResult] = createSignal<UsageResult>()
+  const [rawResult, setResult] = createSignal<UsageResult>()
+  const [resultServer, setResultServer] = createSignal<string>()
   const [loading, setLoading] = createSignal(false)
   const [server, setServer] = createSignal<string>()
+  let generation = 0
+
+  const visible = () => {
+    const target = server() ?? "sidecar"
+    return resultServer() === target ? rawResult() : undefined
+  }
 
   const refresh = async (opts: { force?: boolean; server?: string } = {}) => {
+    const target = opts.server ?? server() ?? "sidecar"
+    if (target !== server()) setServer(target)
+
+    const request = ++generation
     setLoading(true)
+
     try {
       const input: { server?: string; force?: boolean } = {}
-      const target = opts.server ?? server()
       if (target) input.server = target
       if (opts.force) input.force = true
-      setResult(await ctx.main(UsageIpc).get(input))
+
+      const next = await ctx.main(UsageIpc).get(input)
+      if (request !== generation) return
+
+      setResultServer(target)
+      setResult(next)
     } catch {
-      setResult({ state: "error", message: "Usage couldn't be loaded." })
+      if (request !== generation) return
+
+      const previous = resultServer() === target ? dataOf(rawResult()) : undefined
+      setResultServer(target)
+      setResult(
+        withStaleData(
+          { state: "error", message: "Usage couldn't be loaded." },
+          previous,
+        ),
+      )
     } finally {
-      setLoading(false)
+      if (request === generation) setLoading(false)
     }
   }
+
+  const initial = ctx.sessions.current()?.server.id
+  if (initial) setServer(initial)
+  void refresh({ server: initial })
 
   createEffect(() => {
     const next = ctx.sessions.current()?.server.id
@@ -42,12 +71,11 @@ export function createUsageState(ctx: Context): UsageState {
     }
   })
 
-  void refresh()
   const timer = setInterval(() => void refresh(), 60_000)
   onCleanup(() => clearInterval(timer))
 
   return {
-    result,
+    result: visible,
     loading,
     server,
     refresh,

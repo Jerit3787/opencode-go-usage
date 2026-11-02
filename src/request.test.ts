@@ -14,6 +14,7 @@ it("returns parsed data and sends the required headers", async () => {
     expect(String(url)).toBe(USAGE_URL)
     expect((init?.headers as Record<string, string>)["User-Agent"]).toBe(USER_AGENT)
     expect((init?.headers as Record<string, string>).Authorization).toBe("Bearer oc_sk_secret")
+    expect(init?.signal).toBeInstanceOf(AbortSignal)
     return new Response(JSON.stringify(okBody), { status: 200 })
   })
   const result = await requestUsage("oc_sk_secret", fetchImpl)

@@ -1,4 +1,5 @@
-import { clampPercent } from "./usage"
+import { createMemo } from "solid-js"
+import { ringOffset } from "./usage"
 
 export function Ring(props: {
   percent: number
@@ -10,7 +11,7 @@ export function Ring(props: {
   const radius = (props.size - props.stroke) / 2
   const center = props.size / 2
   const circumference = 2 * Math.PI * radius
-  const offset = circumference * (1 - clampPercent(props.percent) / 100)
+  const offset = createMemo(() => ringOffset(props.percent, props.size, props.stroke))
 
   return (
     <svg
@@ -38,7 +39,7 @@ export function Ring(props: {
         stroke-width={props.stroke}
         stroke-linecap="round"
         stroke-dasharray={`${circumference} ${circumference}`}
-        stroke-dashoffset={offset}
+        stroke-dashoffset={offset()}
         transform={`rotate(-90 ${center} ${center})`}
       />
       <text

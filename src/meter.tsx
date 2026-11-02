@@ -1,3 +1,4 @@
+import { createMemo } from "solid-js"
 import {
   clampPercent,
   formatPercent,
@@ -13,8 +14,9 @@ export function MeterRow(props: {
   now: number
   size?: "small" | "large"
 }) {
-  const tone = usageTone(props.window.percent, props.window.limited)
-  const color = usageColor(tone)
+  const tone = createMemo(() => usageTone(props.window.percent, props.window.limited))
+  const color = createMemo(() => usageColor(tone()))
+  const width = createMemo(() => `${clampPercent(props.window.percent)}%`)
   const height = props.size === "large" ? "6px" : "4px"
 
   return (
@@ -41,7 +43,7 @@ export function MeterRow(props: {
           <span style={{ color: "var(--v2-text-text-muted)" }}>
             {formatReset(props.window.resetsAt, props.now)}
           </span>
-          <strong style={{ color, "font-weight": 600 }}>
+          <strong style={{ color: color(), "font-weight": 600 }}>
             {formatPercent(props.window.percent)}
           </strong>
         </span>
@@ -56,9 +58,9 @@ export function MeterRow(props: {
       >
         <div
           style={{
-            width: `${clampPercent(props.window.percent)}%`,
+            width: width(),
             height: "100%",
-            background: color,
+            background: color(),
             "border-radius": "999px",
           }}
         />

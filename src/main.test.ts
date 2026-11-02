@@ -1,3 +1,6 @@
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { afterEach, expect, it, vi } from "vitest"
 import { main } from "./main"
 import { USAGE_URL } from "./request"
@@ -11,15 +14,45 @@ const okBody = {
   },
 }
 
+function usageBody(percent: number) {
+  return {
+    usage: {
+      rolling: {
+        status: "ok",
+        percent,
+        resetsAt: "2026-11-02T18:40:00.000Z",
+      },
+      weekly: { status: "ok", percent: 10, resetsAt: "2026-11-08T18:00:00.000Z" },
+      monthly: { status: "ok", percent: 50, resetsAt: "2026-11-22T04:08:19.000Z" },
+    },
+  }
+}
+
+const credentialBody = {
+  data: [
+    {
+      id: "cred_1",
+      integrationID: "opencode-go",
+      label: "OpenCode Go",
+      active: true,
+      value: { type: "key", key: "oc_sk_test" },
+    },
+  ],
+}
+
 type Impl = { get(input: { server?: string; force?: boolean }): Promise<UsageResult> }
+
+const originalXdg = process.env.XDG_DATA_HOME
+const originalEnvKey = process.env.OPENCODE_GO_API_KEY
+const tempDirs: string[] = []
 
 function setup() {
   let impl: Impl | undefined
   const ctx = {
     serverEndpoints: {
       get: (id: string) =>
-        id === "sidecar"
-          ? { url: "http://localhost:1234", headers: { Authorization: "Bearer server" } }
+        id === "sidecar" || id === "remote"
+          ? { url: `http://${id}:1234`, headers: { Authorization: "Bearer server" } }
           : undefined,
     },
     provide: (_ipc: unknown, value: Impl) => {
@@ -31,47 +64,48 @@ function setup() {
   return impl
 }
 
-function stubFetch(usageResponses: Array<() => Promise<Response>>) {
-  const calls: string[] = []
-  const fake = vi.fn(async (input: string | URL | Request) => {
-    const url = String(input)
-    calls.push(url)
-    if (url.includes("/api/credential")) {
-      return new Response(
-        JSON.stringify({
-          data: [
-            {
-              id: "cred_1",
-              integrationID: "opencode-go",
-              label: "OpenCode Go",
-              active: true,
-              value: { type: "key", key: "oc_sk_test" },
-            },
-          ],
-        }),
-        { status: 200 },
-      )
-    }
-    if (url === USAGE_URL) {
-      const next = usageResponses.shift()
-      if (!next) throw new Error("unexpected usage request")
-      return next()
-    }
-    throw new Error(`unexpected request ${url}`)
-  })
-  vi.stubGlobal("fetch", fake)
-  return calls
+async function useAuthFile(contents?: object): Promise<string> {
+  const dir = await mkdtemp(join(tmpdir(), "opencode-go-usage-"))
+  tempDirs.push(dir)
+  await mkdir(join(dir, "opencode"), { recursive: true })
+  if (contents) {
+    await writeFile(join(dir, "opencode", "auth.json"), JSON.stringify(contents), "utf8")
+  }
+  process.env.XDG_DATA_HOME = dir
+  return dir
 }
 
-afterEach(() => {
+afterEach(async () => {
   vi.unstubAllGlobals()
+  if (originalXdg === undefined) delete process.env.XDG_DATA_HOME
+  else process.env.XDG_DATA_HOME = originalXdg
+  if (originalEnvKey === undefined) delete process.env.OPENCODE_GO_API_KEY
+  else process.env.OPENCODE_GO_API_KEY = originalEnvKey
+  await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })))
 })
 
 it("caches a success per server and credential, and force bypasses it", async () => {
-  const calls = stubFetch([
+  const calls: string[] = []
+  const usageResponses = [
     async () => new Response(JSON.stringify(okBody), { status: 200 }),
     async () => new Response(JSON.stringify(okBody), { status: 200 }),
-  ])
+  ]
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string | URL | Request) => {
+      const url = String(input)
+      calls.push(url)
+      if (url.includes("/api/credential")) {
+        return new Response(JSON.stringify(credentialBody), { status: 200 })
+      }
+      if (url === USAGE_URL) {
+        const next = usageResponses.shift()
+        if (!next) throw new Error("unexpected usage request")
+        return next()
+      }
+      throw new Error(`unexpected request ${url}`)
+    }),
+  )
   const get = setup()
 
   const first = await get.get({ server: "sidecar" })
@@ -87,15 +121,22 @@ it("caches a success per server and credential, and force bypasses it", async ()
 })
 
 it("keeps the last good reading when a forced refresh fails", async () => {
-  stubFetch([
-    async () => new Response(JSON.stringify(okBody), { status: 200 }),
-    async () => {
-      throw new Error("offline")
-    },
-  ])
+  let fail = false
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string | URL | Request) => {
+      const url = String(input)
+      if (url.includes("/api/credential")) {
+        return new Response(JSON.stringify(credentialBody), { status: 200 })
+      }
+      if (fail) throw new Error("offline")
+      return new Response(JSON.stringify(okBody), { status: 200 })
+    }),
+  )
   const get = setup()
 
   await get.get({ server: "sidecar" })
+  fail = true
   const stale = await get.get({ server: "sidecar", force: true })
   expect(stale.state).toBe("error")
   expect(dataOf(stale)?.stale).toBe(true)
@@ -103,8 +144,146 @@ it("keeps the last good reading when a forced refresh fails", async () => {
 })
 
 it("reports an unavailable server instead of signed out", async () => {
-  stubFetch([])
+  await useAuthFile()
+  vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 200 })))
+  const get = setup()
+  const result = await get.get({ server: "missing" })
+  expect(result.state).toBe("unavailable")
+})
+
+it("does not fall back to the local auth file for a remote server", async () => {
+  await useAuthFile({ "opencode-go": { type: "key", key: "oc_sk_local" } })
+  const calls: string[] = []
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string | URL | Request) => {
+      const url = String(input)
+      calls.push(url)
+      if (url.includes("/api/credential")) return new Response("", { status: 500 })
+      if (url === USAGE_URL) return new Response(JSON.stringify(okBody), { status: 200 })
+      throw new Error(`unexpected request ${url}`)
+    }),
+  )
   const get = setup()
   const result = await get.get({ server: "remote" })
   expect(result.state).toBe("unavailable")
+  expect(calls.filter((url) => url === USAGE_URL)).toHaveLength(0)
+})
+
+it("treats an invalid credential response as unavailable", async () => {
+  await useAuthFile()
+  vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 200 })))
+  const get = setup()
+  const result = await get.get({ server: "sidecar" })
+  expect(result.state).toBe("unavailable")
+})
+
+it("invalidates the auth-file cache when the key changes", async () => {
+  const dir = await useAuthFile({ "opencode-go": { type: "key", key: "oc_sk_a" } })
+  let usageCalls = 0
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+      if (url.includes("/api/credential")) return new Response("", { status: 500 })
+      if (url === USAGE_URL) {
+        usageCalls++
+        const auth = (init?.headers as Record<string, string>).Authorization
+        return new Response(JSON.stringify(usageBody(auth === "Bearer oc_sk_a" ? 10 : 20)), {
+          status: 200,
+        })
+      }
+      throw new Error(`unexpected request ${url}`)
+    }),
+  )
+  const get = setup()
+
+  const first = await get.get({ server: "sidecar" })
+  expect(dataOf(first)?.windows.rolling.percent).toBe(10)
+
+  await writeFile(
+    join(dir, "opencode", "auth.json"),
+    JSON.stringify({ "opencode-go": { type: "key", key: "oc_sk_b" } }),
+    "utf8",
+  )
+  const second = await get.get({ server: "sidecar" })
+  expect(dataOf(second)?.windows.rolling.percent).toBe(20)
+  expect(usageCalls).toBe(2)
+})
+
+it("uses OPENCODE_GO_API_KEY without reading the credential endpoint", async () => {
+  process.env.OPENCODE_GO_API_KEY = "oc_sk_env"
+  const calls: string[] = []
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string | URL | Request) => {
+      const url = String(input)
+      calls.push(url)
+      if (url.includes("/api/credential")) throw new Error("credential endpoint must not be used")
+      if (url === USAGE_URL) return new Response(JSON.stringify(okBody), { status: 200 })
+      throw new Error(`unexpected request ${url}`)
+    }),
+  )
+  const get = setup()
+  const result = await get.get({ server: "sidecar" })
+  expect(result.state).toBe("ok")
+  expect(calls.filter((url) => url === USAGE_URL)).toHaveLength(1)
+})
+
+it("coalesces concurrent requests for the same credential", async () => {
+  let release!: (response: Response) => void
+  const pending = new Promise<Response>((resolve) => {
+    release = resolve
+  })
+  let usageCalls = 0
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string | URL | Request) => {
+      const url = String(input)
+      if (url.includes("/api/credential")) {
+        return new Response(JSON.stringify(credentialBody), { status: 200 })
+      }
+      if (url === USAGE_URL) {
+        usageCalls++
+        return pending
+      }
+      throw new Error(`unexpected request ${url}`)
+    }),
+  )
+  const get = setup()
+  const first = get.get({ server: "sidecar" })
+  const second = get.get({ server: "sidecar" })
+
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  expect(usageCalls).toBe(1)
+  release(new Response(JSON.stringify(okBody), { status: 200 }))
+
+  const [a, b] = await Promise.all([first, second])
+  expect(a.state).toBe("ok")
+  expect(b).toEqual(a)
+})
+
+it("retains last good when the sidecar credential endpoint fails", async () => {
+  await useAuthFile()
+  let failCredentials = false
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string | URL | Request) => {
+      const url = String(input)
+      if (url.includes("/api/credential")) {
+        if (failCredentials) return new Response("", { status: 500 })
+        return new Response(JSON.stringify(credentialBody), { status: 200 })
+      }
+      if (url === USAGE_URL) return new Response(JSON.stringify(okBody), { status: 200 })
+      throw new Error(`unexpected request ${url}`)
+    }),
+  )
+  const get = setup()
+
+  await get.get({ server: "sidecar" })
+  failCredentials = true
+  const stale = await get.get({ server: "sidecar", force: true })
+  expect(stale.state).toBe("unavailable")
+  expect(dataOf(stale)?.stale).toBe(true)
+  expect(dataOf(stale)?.windows.monthly.percent).toBe(78)
 })

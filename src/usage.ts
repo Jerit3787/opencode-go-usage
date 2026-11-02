@@ -195,7 +195,7 @@ export function dataOf(result: UsageResult | undefined): UsageData | undefined {
 
 export function pillView(
   result: UsageResult | undefined,
-): { label: string; tone?: "warning" | "danger" } {
+): { label: string; tone?: "warning" | "danger"; stale: boolean } {
   const data = dataOf(result)
   if (data) {
     const { key, window } = tightestWindow(data)
@@ -203,6 +203,7 @@ export function pillView(
     return {
       label: `${windowShortLabel(key)} ${formatPercent(window.percent)}`,
       tone: tone === "none" ? undefined : tone,
+      stale: data.stale,
     }
   }
 
@@ -214,6 +215,7 @@ export function pillView(
         : result?.state === "error" || result?.state === "unavailable"
           ? "warning"
           : undefined,
+    stale: false,
   }
 }
 
@@ -237,8 +239,13 @@ export function cacheKey(server: string | undefined, credentialID: string): stri
   return `${server ?? "sidecar"}:${credentialID}`
 }
 
-export function cacheTtl(result: UsageResult): number {
-  return result.state === "ok" ? 60_000 : 45_000
+export function cacheTtl(_result: UsageResult): number {
+  return 45_000
+}
+
+export function ringOffset(percent: number, size: number, stroke: number): number {
+  const radius = (size - stroke) / 2
+  return 2 * Math.PI * radius * (1 - clampPercent(percent) / 100)
 }
 
 export function actionLabel(action: StatusCopy["action"]): string {

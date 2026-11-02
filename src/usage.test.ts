@@ -11,6 +11,7 @@ import {
   noticeFor,
   parseUsageResponse,
   pillView,
+  ringOffset,
   statusCopy,
   tightestWindow,
   usageTone,
@@ -109,7 +110,11 @@ it("formats reset times and updated times in UTC", () => {
 
 it("builds the pill label and keeps data on errors", () => {
   const data = parseUsageResponse(body, NOW)!
-  expect(pillView({ state: "ok", data })).toEqual({ label: "mo 78%", tone: "warning" })
+  expect(pillView({ state: "ok", data })).toEqual({
+    label: "mo 78%",
+    tone: "warning",
+    stale: false,
+  })
   const low = parseUsageResponse(
     {
       usage: {
@@ -119,14 +124,20 @@ it("builds the pill label and keeps data on errors", () => {
     },
     NOW,
   )!
-  expect(pillView({ state: "ok", data: low })).toEqual({ label: "5h 27%", tone: undefined })
+  expect(pillView({ state: "ok", data: low })).toEqual({
+    label: "5h 27%",
+    tone: undefined,
+    stale: false,
+  })
   expect(pillView({ state: "rejected", message: "no" })).toEqual({
     label: "Go usage",
     tone: "danger",
+    stale: false,
   })
   expect(pillView({ state: "error", message: "no" })).toEqual({
     label: "Go usage",
     tone: "warning",
+    stale: false,
   })
   const stale = withStaleData({ state: "error", message: "offline" }, data)
   expect(dataOf(stale)?.stale).toBe(true)
@@ -143,9 +154,10 @@ it("maps status copy and cache values", () => {
   expect(statusCopy({ state: "rejected", message: "no" }).action).toBe("connect")
   expect(cacheKey(undefined, "cred_1")).toBe("sidecar:cred_1")
   expect(cacheKey("remote", "cred_1")).toBe("remote:cred_1")
-  expect(cacheTtl({ state: "ok", data: parseUsageResponse(body, NOW)! })).toBe(60_000)
+  expect(cacheTtl({ state: "ok", data: parseUsageResponse(body, NOW)! })).toBe(45_000)
   expect(cacheTtl({ state: "error", message: "no" })).toBe(45_000)
   expect(formatPercent(27.6)).toBe("28%")
+  expect(ringOffset(50, 64, 6)).toBeCloseTo(29 * Math.PI)
 })
 
 it("maps state actions and notices, including stale data", () => {
@@ -163,15 +175,21 @@ it("maps state actions and notices, including stale data", () => {
   expect(noticeFor({ state: "console-only" })?.action).toBe("usage")
   expect(noticeFor({ state: "no-plan", message: "no", data })?.action).toBe("console")
   expect(noticeFor({ state: "unavailable", message: "no", data })?.action).toBe("retry")
-  expect(pillView({ state: "console-only" })).toEqual({ label: "Go usage", tone: undefined })
+  expect(pillView({ state: "console-only" })).toEqual({
+    label: "Go usage",
+    tone: undefined,
+    stale: false,
+  })
   expect(pillView({ state: "no-plan", message: "no" })).toEqual({
     label: "Go usage",
     tone: undefined,
+    stale: false,
   })
   expect(pillView({ state: "unavailable", message: "no" })).toEqual({
     label: "Go usage",
     tone: "warning",
+    stale: false,
   })
   const stale = withStaleData({ state: "error", message: "offline" }, data)
-  expect(pillView(stale)).toEqual({ label: "mo 78%", tone: "warning" })
+  expect(pillView(stale)).toEqual({ label: "mo 78%", tone: "warning", stale: true })
 })
