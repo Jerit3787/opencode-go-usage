@@ -3,6 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "description": "Claude-style OpenCode Go usage viewer for OpenCode Desktop",
+  "author": "Danish Hakim",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jerit3787/opencode-go-usage.git"
+  },
+  "homepage": "https://github.com/Jerit3787/opencode-go-usage#readme",
+  "bugs": {
+    "url": "https://github.com/Jerit3787/opencode-go-usage/issues"
+  },
+  "keywords": ["opencode", "plugin", "usage", "opencode-go"],
   "exports": {
     "./gui-experimental": "./dist/gui-experimental.cjs"
   },

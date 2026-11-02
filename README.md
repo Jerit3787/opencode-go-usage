@@ -29,10 +29,11 @@ The built-in OpenCode Usage page depends on a Console workspace sign-in. This pl
 
 ## Install
 
-Build the plugin:
+Clone and build the plugin:
 
 ```sh
-cd "/Users/danishhakim/Documents/Default Project/opencode-usage"
+git clone https://github.com/Jerit3787/opencode-go-usage.git
+cd opencode-go-usage
 npm install
 npm run build
 ```
@@ -43,10 +44,12 @@ Add the absolute plugin directory to the global `~/.config/opencode/opencode.jso
 {
   "plugins": [
     "superpowers@git+https://github.com/obra/superpowers.git",
-    "/Users/danishhakim/Documents/Default Project/opencode-usage"
+    "/absolute/path/to/opencode-go-usage"
   ]
 }
 ```
+
+Replace `/absolute/path/to/opencode-go-usage` with the directory you cloned into.
 
 OpenCode reloads plugins after the config change. No app restart is needed. For local development, `npm run watch` rebuilds the GUI bundle and the app reloads it on each change.
 
