@@ -1,7 +1,7 @@
 # OpenCode Go usage viewer — design
 
 Date: 2026-11-02
-Status: draft for approval
+Status: approved
 
 ## Intent
 
