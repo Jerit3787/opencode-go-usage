@@ -46,6 +46,10 @@ const ConsoleModelsResultSchema = Schema.Union([
       models: Schema.Array(ConsoleModelSchema),
       range: Schema.Literal("30d"),
       totalCost: Schema.Number,
+      source: Schema.Union([
+        Schema.Literal("server"),
+        Schema.Literal("desktop"),
+      ]),
     }),
   }),
   Schema.Struct({ state: Schema.Literal("error"), message: Schema.String }),

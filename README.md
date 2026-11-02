@@ -35,6 +35,8 @@ GET https://opencode.ai/console/api/usage/models?range=30d&pageSize=100
 
 It returns requests, tokens, and list cost per model. Those costs feed the per-model card. The Console token never leaves the main process and is never returned to the window.
 
+If the active server is remote (for example, an OpenCode instance reached over SSH) and that server has no Console sign-in, the plugin falls back to **this desktop's** Console account. The card labels that source as `via this desktop`. The Console activity is account-wide, so it still covers the remote Go usage; the server meters remain the remote server's meters.
+
 ## Model breakdown
 
 When Console is connected, the card uses Console activity for the **last 30 days**. It shows each Go model's Console cost, monthly limit, contribution, requests, and tokens, then:

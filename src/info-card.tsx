@@ -25,7 +25,7 @@ const ROWS = [
   },
   {
     label: "Source",
-    body: "Console activity for the last 30 days when connected; otherwise this server's local session stats.",
+    body: "Console activity for the last 30 days. If the active server is remote and has no Console sign-in, the desktop's Console account is used. Otherwise the card falls back to local session stats.",
   },
 ]
 

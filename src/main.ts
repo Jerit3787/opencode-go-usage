@@ -106,6 +106,7 @@ export const main: Plugin.MainSetup = (ctx) => {
 
   const fetchConsoleModels = async (
     endpoint: ServerEndpoint,
+    source: "server" | "desktop",
   ): Promise<ConsoleModelResult> => {
     const entries = await readCredentialEntries(endpoint)
     if (!entries) {
@@ -150,7 +151,7 @@ export const main: Plugin.MainSetup = (ctx) => {
       }
 
       const totalCost = models.reduce((total, model) => total + model.cost, 0)
-      return { state: "ok", data: { models, range: "30d", totalCost } }
+      return { state: "ok", data: { models, range: "30d", totalCost, source } }
     } catch {
       return {
         state: "error",
@@ -291,30 +292,57 @@ export const main: Plugin.MainSetup = (ctx) => {
 
     async consoleModels(input): Promise<ConsoleModelResult> {
       const serverID = input.server ?? "sidecar"
-      const endpoint = ctx.serverEndpoints.get(serverID)
-      if (!endpoint) {
+      const cached = consoleModelCache.get(serverID)
+      if (!input.force && cached && Date.now() - cached.at < MODEL_CACHE_TTL_MS) {
+        return cached.result
+      }
+
+      const candidates: Array<{
+        id: string
+        endpoint: ServerEndpoint
+        source: "server" | "desktop"
+      }> = []
+      const target = ctx.serverEndpoints.get(serverID)
+      if (target) {
+        candidates.push({ id: serverID, endpoint: target, source: "server" })
+      }
+      if (serverID !== "sidecar") {
+        const desktop = ctx.serverEndpoints.get("sidecar")
+        if (desktop) {
+          candidates.push({ id: "sidecar", endpoint: desktop, source: "desktop" })
+        }
+      }
+
+      if (candidates.length === 0) {
         return {
           state: "error",
           message: "The OpenCode server isn't ready.",
         }
       }
 
-      const cached = consoleModelCache.get(serverID)
-      if (!input.force && cached && Date.now() - cached.at < MODEL_CACHE_TTL_MS) {
-        return cached.result
+      let lastError: Extract<ConsoleModelResult, { state: "error" }> | undefined
+      for (const candidate of candidates) {
+        const result = await fetchConsoleModels(candidate.endpoint, candidate.source)
+        if (result.state === "ok") {
+          if (candidate.source === "desktop") {
+            ctx.log.write("info", "opencode-go console models using this desktop", {
+              server: serverID,
+            })
+          }
+          consoleModelCache.set(serverID, { at: Date.now(), result })
+          pruneOldest(consoleModelCache, MAX_ENTRIES)
+          return result
+        }
+        lastError = result
       }
 
-      const result = await fetchConsoleModels(endpoint)
-      if (result.state === "ok") {
-        consoleModelCache.set(serverID, { at: Date.now(), result })
-        pruneOldest(consoleModelCache, MAX_ENTRIES)
-      } else {
-        ctx.log.write("warn", "opencode-go console models unavailable", {
-          server: serverID,
-          message: result.message,
-        })
-      }
-      return result
+      const failure =
+        lastError ?? { state: "error" as const, message: "Console model usage is unavailable." }
+      ctx.log.write("warn", "opencode-go console models unavailable", {
+        server: serverID,
+        message: failure.message,
+      })
+      return failure
     },
   })
 }

@@ -197,7 +197,9 @@ export function ConsoleBreakdown(props: { state: UsageState; ctx: Context }) {
             Model breakdown
           </div>
           <div style={{ "font-size": "12px", color: "var(--v2-text-text-muted)" }}>
-            Console spend · last 30 days
+            {data()?.source === "desktop"
+              ? "Console account · last 30 days · via this desktop"
+              : "Console spend · last 30 days"}
           </div>
         </div>
         <div style={{ "font-size": "12px", color: "var(--v2-text-text-muted)" }}>

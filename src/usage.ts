@@ -79,6 +79,7 @@ export type ConsoleModelAnalytics = {
   models: readonly ConsoleModelUsage[]
   range: "30d"
   totalCost: number
+  source: "server" | "desktop"
 }
 
 export type ConsoleModelResult =

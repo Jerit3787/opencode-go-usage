@@ -44,6 +44,8 @@ The app already ships a Usage page, but it reads `/api/experimental/usage/limits
 
 The Console endpoint does not expose per-model activity, but the signed-in Console workspace does through `GET /console/api/usage/models?range=30d&pageSize=100`. The plugin reads that endpoint from the main process using the stored Console OAuth credential and `x-org-id`. The response supplies per-model requests, tokens, and list cost for the last 30 days. The **View in Console** action opens the workspace `usageURL`.
 
+The per-model source order is the active server's `/api/credential` first, then the local desktop's `/api/credential` when the active server is remote. A remote server reached over SSH often has no Console sign-in; the desktop's Console account is account-wide and still covers the remote Go usage. The result carries `source: "server" | "desktop"`, and the card labels the desktop fallback.
+
 The Go usage endpoint uses `Authorization: Bearer <key>`. Response:
   ```json
   {
