@@ -25,7 +25,6 @@ export type UsageState = {
   refreshModels(opts?: { force?: boolean; server?: string }): Promise<void>
   openSettings(): void
   connect(): void
-  openBuiltinUsage(): void
   openConsole(): void
 }
 
@@ -186,9 +185,6 @@ export function createUsageState(ctx: Context): UsageState {
       if (!ctx.commands.run("provider.connect")) {
         ctx.toast.show({ title: "Run /connect to add OpenCode Go.", variant: "error" })
       }
-    },
-    openBuiltinUsage: () => {
-      if (!ctx.commands.run("usage.view")) ctx.system.openExternal("https://opencode.ai/console")
     },
     openConsole: () =>
       ctx.system.openExternal(

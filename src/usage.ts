@@ -34,7 +34,7 @@ export type UsageResult =
 export type StatusCopy = {
   title: string
   body: string
-  action: "connect" | "console" | "usage" | "retry" | "none"
+  action: "connect" | "console" | "retry" | "none"
 }
 
 export type ModelUsage = {
@@ -668,8 +668,6 @@ export function actionLabel(action: StatusCopy["action"]): string {
   switch (action) {
     case "connect":
       return "Connect OpenCode Go"
-    case "usage":
-      return "Open built-in Usage"
     case "console":
       return "Open Console"
     case "retry":
@@ -703,8 +701,8 @@ export function statusCopy(result: UsageResult | undefined): StatusCopy {
     case "console-only":
       return {
         title: "Connected through Console",
-        body: "Open the built-in Usage page to see Console budgets and Go usage.",
-        action: "usage",
+        body: "Open Console to see Go usage and budgets.",
+        action: "console",
       }
     case "rejected":
       return {

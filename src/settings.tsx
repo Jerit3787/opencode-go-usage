@@ -56,10 +56,8 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
     switch (copy().action) {
       case "connect":
         return "Connection needed"
-      case "usage":
-        return "Console managed"
       case "console":
-        return "No Go allowance"
+        return "Console managed"
       case "retry":
         return "Unavailable"
       default:
@@ -79,9 +77,6 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
     switch (copy().action) {
       case "connect":
         props.state.connect()
-        break
-      case "usage":
-        props.state.openBuiltinUsage()
         break
       case "console":
         props.state.openConsole()
@@ -303,9 +298,6 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
               >
                 <ui.Button variant="neutral" onClick={props.state.openConsole}>
                   View in Console
-                </ui.Button>
-                <ui.Button variant="ghost" onClick={props.state.openBuiltinUsage}>
-                  Open built-in Usage
                 </ui.Button>
               </div>
             </div>

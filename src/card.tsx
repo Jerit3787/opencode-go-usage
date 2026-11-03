@@ -28,9 +28,6 @@ export function UsageCard(props: {
       case "connect":
         props.state.connect()
         break
-      case "usage":
-        props.state.openBuiltinUsage()
-        break
       case "console":
         props.state.openConsole()
         break

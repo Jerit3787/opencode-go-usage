@@ -204,7 +204,7 @@ it("builds the pill label and keeps data on errors", () => {
 
 it("maps status copy and cache values", () => {
   expect(statusCopy({ state: "signed-out" }).action).toBe("connect")
-  expect(statusCopy({ state: "console-only" }).action).toBe("usage")
+  expect(statusCopy({ state: "console-only" }).action).toBe("console")
   expect(statusCopy({ state: "no-plan", message: "no" }).action).toBe("console")
   expect(statusCopy({ state: "unavailable", message: "no" }).action).toBe("retry")
   expect(statusCopy({ state: "error", message: "no" }).action).toBe("retry")
@@ -381,7 +381,6 @@ it("sums per-model percentages into the pooled monthly total", () => {
 it("maps state actions and notices, including stale data", () => {
   const data = parseUsageResponse(body, NOW)!
   expect(actionLabel("connect")).toBe("Connect OpenCode Go")
-  expect(actionLabel("usage")).toBe("Open built-in Usage")
   expect(actionLabel("console")).toBe("Open Console")
   expect(actionLabel("retry")).toBe("Retry")
   expect(actionLabel("none")).toBe("")
@@ -390,7 +389,7 @@ it("maps state actions and notices, including stale data", () => {
     "Usage couldn't be loaded",
   )
   expect(noticeFor({ state: "signed-out" })?.action).toBe("connect")
-  expect(noticeFor({ state: "console-only" })?.action).toBe("usage")
+  expect(noticeFor({ state: "console-only" })?.action).toBe("console")
   expect(noticeFor({ state: "no-plan", message: "no", data })?.action).toBe("console")
   expect(noticeFor({ state: "unavailable", message: "no", data })?.action).toBe("retry")
   expect(pillView({ state: "console-only" })).toEqual({

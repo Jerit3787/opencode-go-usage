@@ -27,7 +27,7 @@ The app already ships a Usage page, but it reads `/api/experimental/usage/limits
 - Notifications or desktop alerts when a limit is close.
 - A workspace/account picker. Use the active OpenCode Go credential.
 - A TUI plugin. This is desktop-only.
-- OAuth/Console-only Go accounts in v1. They get a distinct state that points to the app's built-in Usage page; API-key accounts are the supported path.
+- Modifying the app's built-in Usage page. Console-only accounts get a distinct state that opens Console.
 
 ## Constraints and facts
 
@@ -197,7 +197,7 @@ Updated 2:32 PM                          See all →
 - The last row has the last-updated time and a **See all** button. It closes the popover and opens the Go usage settings page.
 - Loading: a small `ctx.ui.Loader`.
 - Signed out: "OpenCode Go isn't connected" with a button that runs `ctx.commands.run("provider.connect")`; if that returns false, show a toast telling the user to run `/connect`.
-- Console-only: "OpenCode Go is connected through Console" with a button that runs `ctx.commands.run("usage.view")`; if that returns false, open the Console URL.
+- Console-only: "OpenCode Go is connected through Console" with a button that opens the Console URL.
 - Rejected: "OpenCode Go rejected the stored key" with a reconnect button.
 - No plan: "This key has no OpenCode Go allowance" with a Console link; no reconnect loop.
 - Unavailable: "Couldn't check your OpenCode connection" with retry; keep the last reading if there is one.
@@ -209,7 +209,7 @@ Updated 2:32 PM                          See all →
 - Three rows with larger bars (6px), labels, percentages, and reset times.
 - **Refresh** button calls `get({ force: true })`; disabled while loading, spinner while busy.
 - **View in Console** button opens `https://opencode.ai/console`.
-- **Open built-in Usage** runs `ctx.commands.run("usage.view")`; if it returns false, fall back to Console.
+- **View in Console** opens the signed-in workspace's `usageURL`.
 - **Connect** runs `ctx.commands.run("provider.connect")`; if it returns false, show a toast telling the user to run `/connect`.
 - Same signed-out/console-only/rejected/no-plan/unavailable/error states as the card.
 
@@ -253,7 +253,7 @@ Defaults are DeepSeek V4.1 Flash $100 and DeepSeek V4 Pro $15, matching the publ
 | Limited | red ring, `5h 100%` | "Limit reached" on that row |
 | Stale | last reading + muted dot | last reading, "Updated 12m ago", retry |
 | Signed out | muted ring, `Go usage` | connect button |
-| Console-only | muted ring, `Go usage` | open built-in Usage |
+| Console-only | muted ring, `Go usage` | open Console |
 | Rejected | red ring, `Go key rejected` | reconnect button |
 | No plan | muted ring, `Go usage` | Console link |
 | Unavailable | muted ring, `Go usage` | retry; last reading if present |
@@ -335,7 +335,7 @@ Remove the entry from `plugins` to uninstall. `opencode plugin remove` is for pu
 - **Cloudflare.** A specific user agent is required; do not rely on the default.
 - **Credential endpoint.** It returns secrets by design. Keep the key in main and return only sanitized usage.
 - **Multiple active credentials.** Use the first active `opencode-go` key credential; the cache is keyed by credential id, so switching accounts does not leak a reading.
-- **OAuth/Console-only accounts.** v1 points them at the built-in Usage page rather than trying to use an OAuth token as a Go API key.
+- **OAuth/Console-only accounts.** Aggregate meters come from the Console endpoint; per-model data uses the desktop Console account. The UI opens Console for budgets rather than trying to use an OAuth token as a Go API key.
 - **403 ambiguity.** Treat a Cloudflare-style 403 as a network error and a plain 403 as no Go allowance; never loop the user through reconnect for a valid key.
 
 ## Decisions left to the builder
