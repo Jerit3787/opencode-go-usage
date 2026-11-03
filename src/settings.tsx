@@ -90,68 +90,36 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
   }
 
   return (
-    <div style={{ display: "flex", "flex-direction": "column", "min-height": "100%" }}>
-      <div
-        style={{
-          display: "flex",
-          "flex-direction": "column",
-          gap: "6px",
-          padding: "40px 0 24px",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            "justify-content": "space-between",
-            "align-items": "center",
-            gap: "16px",
-          }}
-        >
-          <div
-            style={{
-              "font-size": "20px",
-              "font-weight": 640,
-              "line-height": "1.2",
-              color: "var(--v2-text-text-base)",
-            }}
-          >
-            Go usage
+    <>
+      <div class="settings-tab-header">
+        <div class="settings-tab-header-row">
+          <div class="flex flex-col gap-1">
+            <h2 class="settings-tab-title">Go usage</h2>
+            <span class="text-11-regular text-v2-text-text-muted">
+              Your OpenCode Go limits and reset times.
+            </span>
           </div>
-          <ui.Button
-            variant="neutral"
-            icon="refresh"
-            busy={
-              props.state.loading() ||
-              props.state.modelsLoading() ||
-              props.state.consoleModelsLoading()
-            }
-            onClick={() => {
-              void props.state.refresh({ force: true })
-              void props.state.refreshModels({ force: true })
-            }}
-          >
-            Refresh
-          </ui.Button>
-        </div>
-        <div
-          style={{
-            "font-size": "14px",
-            "line-height": "1.45",
-            color: "var(--v2-text-text-muted)",
-          }}
-        >
-          Your OpenCode Go limits and reset times.
+          <div class="settings-tab-header-actions">
+            <ui.Button
+              variant="neutral"
+              icon="refresh"
+              busy={
+                props.state.loading() ||
+                props.state.modelsLoading() ||
+                props.state.consoleModelsLoading()
+              }
+              onClick={() => {
+                void props.state.refresh({ force: true })
+                void props.state.refreshModels({ force: true })
+              }}
+            >
+              Refresh
+            </ui.Button>
+          </div>
         </div>
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          "flex-direction": "column",
-          gap: "24px",
-          padding: "0 0 40px",
-        }}
-      >
+      <div class="settings-tab-body settings-tab-body--sectioned">
 
         <Show when={notice()}>
           {(notice) => <InlineNotice copy={notice()} run={run} />}
@@ -312,6 +280,6 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
 
         <UsageInfo ctx={props.ctx} />
       </div>
-    </div>
+    </>
   )
 }
