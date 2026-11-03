@@ -93,11 +93,10 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
     <div style={{ display: "flex", "flex-direction": "column", "min-height": "100%" }}>
       <div
         style={{
-          position: "sticky",
-          top: 0,
-          "z-index": 10,
-          background: "var(--v2-background-bg-base)",
-          padding: "40px 0 0",
+          display: "flex",
+          "flex-direction": "column",
+          gap: "6px",
+          padding: "40px 0 24px",
         }}
       >
         <div
@@ -110,9 +109,9 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
         >
           <div
             style={{
-              "font-size": "15px",
+              "font-size": "20px",
               "font-weight": 640,
-              "line-height": "var(--line-height-base)",
+              "line-height": "1.2",
               color: "var(--v2-text-text-base)",
             }}
           >
@@ -134,25 +133,25 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
             Refresh
           </ui.Button>
         </div>
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          "flex-direction": "column",
-          gap: "32px",
-          padding: "16px 0 40px",
-        }}
-      >
         <div
           style={{
-            "font-size": "13px",
+            "font-size": "14px",
             "line-height": "1.45",
             color: "var(--v2-text-text-muted)",
           }}
         >
           Your OpenCode Go limits and reset times.
         </div>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          "flex-direction": "column",
+          gap: "24px",
+          padding: "0 0 40px",
+        }}
+      >
 
         <Show when={notice()}>
           {(notice) => <InlineNotice copy={notice()} run={run} />}
