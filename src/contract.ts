@@ -47,6 +47,7 @@ const ConsoleModelsResultSchema = Schema.Union([
       range: Schema.Union([Schema.Literal("30d"), Schema.Literal("period")]),
       from: Schema.optional(Schema.String),
       to: Schema.optional(Schema.String),
+      since: Schema.optional(Schema.String),
       totalCost: Schema.Number,
       source: Schema.Union([
         Schema.Literal("server"),
@@ -100,6 +101,7 @@ export const UsageIpc = Ipc.define({
         force: Schema.optional(Schema.Boolean),
         from: Schema.optional(Schema.String),
         to: Schema.optional(Schema.String),
+        since: Schema.optional(Schema.String),
       }),
       output: ConsoleModelsResultSchema,
     },

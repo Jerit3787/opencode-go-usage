@@ -112,6 +112,7 @@ export const main: Plugin.MainSetup = (ctx) => {
     source: "server" | "desktop",
     from?: string,
     to?: string,
+    since?: string,
   ): Promise<ConsoleModelResult> => {
     const entries = await readCredentialEntries(endpoint)
     if (!entries) {
@@ -137,8 +138,9 @@ export const main: Plugin.MainSetup = (ctx) => {
         Accept: "application/json",
         "User-Agent": "opencode-go-usage/0.1.0",
       }
-      const range =
-        from && to
+      const range = since
+        ? `since=${encodeURIComponent(since)}`
+        : from && to
           ? `from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
           : "range=30d"
       const [modelsResponse, invoicesResponse] = await Promise.all([
@@ -181,9 +183,10 @@ export const main: Plugin.MainSetup = (ctx) => {
         state: "ok",
         data: {
           models,
-          range: from && to ? "period" : "30d",
+          range: from && to || since ? "period" : "30d",
           from: from && to ? from : undefined,
           to: from && to ? to : undefined,
+          since,
           totalCost,
           source,
           plan,
@@ -329,7 +332,7 @@ export const main: Plugin.MainSetup = (ctx) => {
 
     async consoleModels(input): Promise<ConsoleModelResult> {
       const serverID = input.server ?? "sidecar"
-      const modelCacheKey = `${serverID}:${input.from ?? "30d"}:${input.to ?? ""}`
+      const modelCacheKey = `${serverID}:${input.since ?? `${input.from ?? "30d"}:${input.to ?? ""}`}`
       const cached = consoleModelCache.get(modelCacheKey)
       if (!input.force && cached && Date.now() - cached.at < MODEL_CACHE_TTL_MS) {
         return cached.result
@@ -371,6 +374,7 @@ export const main: Plugin.MainSetup = (ctx) => {
           candidate.source,
           input.from,
           input.to,
+          input.since,
         )
         if (result.state === "ok") {
           if (candidate.source === "desktop") {

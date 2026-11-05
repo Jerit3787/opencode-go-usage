@@ -94,29 +94,47 @@ export function createUsageState(ctx: Context): UsageState {
     try {
       const current = resultServer() === target ? dataOf(rawResult()) : undefined
       const monthlyReset = current?.windows.monthly.resetsAt
-      const from =
+      const since =
         monthlyReset && monthlyReset > 0
-          ? new Date(subtractMonth(monthlyReset)).toISOString().slice(0, 10)
+          ? new Date(subtractMonth(monthlyReset)).toISOString()
           : undefined
+      const from = since ? since.slice(0, 10) : undefined
       const to = from ? new Date().toISOString().slice(0, 10) : undefined
-      const input: { server?: string; force?: boolean; from?: string; to?: string } = {
-        server: target,
-      }
-      if (opts.force) input.force = true
-      if (from && to) {
-        input.from = from
-        input.to = to
+
+      const requestConsole = async (extra: {
+        since?: string
+        from?: string
+        to?: string
+      }) => {
+        // The desktop is the primary Console account. Remote servers may have an
+        // older or unrelated Console workspace, so try the desktop first.
+        let result = await ctx.main(UsageIpc).consoleModels({
+          server: "sidecar",
+          force: true,
+          ...extra,
+        })
+        if (result.state !== "ok" && target !== "sidecar") {
+          result = await ctx.main(UsageIpc).consoleModels({
+            server: target,
+            force: true,
+            ...extra,
+          })
+        }
+        return result
       }
 
-      // The desktop is the primary Console account. Remote servers may have an
-      // older or unrelated Console workspace, so try the desktop first.
-      let result =
-        target === "sidecar"
-          ? await ctx.main(UsageIpc).consoleModels(input)
-          : await ctx.main(UsageIpc).consoleModels({ ...input, server: "sidecar" })
-      if (result.state !== "ok" && target !== "sidecar") {
-        result = await ctx.main(UsageIpc).consoleModels(input)
+      const attempts = since ? [{ since }, { from, to }] : [{ from, to }]
+      let result: ConsoleModelResult | undefined
+      for (const extra of attempts) {
+        try {
+          const candidate = await requestConsole(extra)
+          result = candidate
+          if (candidate.state === "ok" && candidate.data.range === "period") break
+        } catch {
+          // Try the next range; the final failure is reported below.
+        }
       }
+      if (!result) throw new Error("console models unavailable")
       if (target !== "sidecar" && result.state === "ok" && result.data.source === "server") {
         result = { ...result, data: { ...result.data, source: "desktop" } }
       }

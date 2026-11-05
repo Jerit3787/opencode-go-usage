@@ -189,8 +189,9 @@ export function ConsoleBreakdown(props: { state: UsageState; ctx: Context }) {
     const current = server()
     return current === undefined ? undefined : current - calculated()
   }
+  const deltaSmall = () => delta() !== undefined && Math.abs(delta()!) < 1
   const deltaColor = () =>
-    delta() === undefined || Math.abs(delta()!) < 0.05
+    delta() === undefined || deltaSmall()
       ? "var(--v2-text-text-muted)"
       : "var(--v2-state-fg-warning)"
   const excluded = () => rows().filter((row) => row.limit === undefined).length
@@ -352,7 +353,11 @@ export function ConsoleBreakdown(props: { state: UsageState; ctx: Context }) {
           >
             <span style={{ color: "var(--v2-text-text-muted)" }}>Difference</span>
             <span style={{ color: deltaColor(), "font-weight": 600 }}>
-              {delta() !== undefined ? formatDelta(delta()!) : "—"}
+              {delta() === undefined
+                ? "—"
+                : deltaSmall()
+                  ? "Within 1 pt"
+                  : formatDelta(delta()!)}
             </span>
           </div>
           <Show when={excluded() > 0}>

@@ -21,7 +21,7 @@ const ROWS = [
   },
   {
     label: "Server meter",
-    body: "Authoritative. The model card shows the calculated total and the server monthly meter separately.",
+    body: "Authoritative and shown as a whole percentage. Differences under 1 point are within the server meter's display precision.",
   },
   {
     label: "Plan",

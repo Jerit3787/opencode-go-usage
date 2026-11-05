@@ -88,6 +88,7 @@ export type ConsoleModelAnalytics = {
   range: "30d" | "period"
   from?: string
   to?: string
+  since?: string
   totalCost: number
   source: "server" | "desktop"
   plan: GoPlan
