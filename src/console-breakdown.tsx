@@ -153,6 +153,10 @@ export function ConsoleBreakdown(props: { state: UsageState; ctx: Context }) {
     return result?.state === "ok" ? result.data : undefined
   }
   const plan = () => data()?.plan ?? "go"
+  const staleServer = () => {
+    const current = data() as { plan?: string } | undefined
+    return current !== undefined && current.plan === undefined
+  }
   const overrides = () => {
     const value = props.ctx.options.allowances
     if (!value || typeof value !== "object") return {}
@@ -224,6 +228,20 @@ export function ConsoleBreakdown(props: { state: UsageState; ctx: Context }) {
           Server monthly {server() !== undefined ? formatPercent1(server()!) : "—"}
         </div>
       </div>
+
+      <Show when={staleServer()}>
+        <div
+          style={{
+            ...rowStyle,
+            "font-size": "11px",
+            "line-height": "1.45",
+            color: "var(--v2-state-fg-warning)",
+          }}
+        >
+          This card is using the previous plugin server. Restart OpenCode Desktop to load
+          Go Plus/Go Teams plan detection and the current Go month.
+        </div>
+      </Show>
 
       <Show
         when={rows().length > 0}
