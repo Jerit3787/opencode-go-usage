@@ -203,6 +203,7 @@ export function createUsageState(ctx: Context): UsageState {
   const initial = ctx.sessions.current()?.server.id
   if (initial) setServer(initial)
   void refresh({ server: initial })
+  void refreshConsoleModels({ server: initial })
 
   createEffect(() => {
     const next = ctx.sessions.current()?.server.id

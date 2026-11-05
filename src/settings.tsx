@@ -12,6 +12,7 @@ import {
   dataOf,
   formatPercent,
   formatUpdated,
+  goPlanName,
   noticeFor,
   statusCopy,
   tightestWindow,
@@ -34,6 +35,8 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
       tone: usageTone(window.percent, window.limited),
     }
   }
+
+  const planName = () => goPlanName(props.state.plan())
 
   const consoleReady = () => {
     const result = props.state.consoleModels()
@@ -97,9 +100,9 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
       <div class="settings-tab-header">
         <div class="settings-tab-header-row">
           <div class="flex flex-col gap-1">
-            <h2 class="settings-tab-title">Go usage</h2>
+            <h2 class="settings-tab-title">{planName()} usage</h2>
             <span class="text-11-regular text-v2-text-text-muted">
-              Your OpenCode Go limits and reset times.
+              Your OpenCode {planName()} limits and reset times.
             </span>
           </div>
           <div class="settings-tab-header-actions">
@@ -217,7 +220,7 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
                       color: "var(--v2-text-text-base)",
                     }}
                   >
-                    OpenCode Go
+                    OpenCode {planName()}
                   </div>
                   <div
                     style={{

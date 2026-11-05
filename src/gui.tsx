@@ -5,7 +5,7 @@ import { usagePill } from "./pill"
 import { UsageSettings } from "./settings"
 import { createUsageState } from "./state"
 import { usageStyles } from "./styles"
-import { clampPercent, dataOf, tightestWindow, usageColor, usageTone } from "./usage"
+import { clampPercent, dataOf, goPlanName, tightestWindow, usageColor, usageTone } from "./usage"
 
 export default Plugin.define({
   setup(ctx) {
@@ -17,13 +17,17 @@ export default Plugin.define({
       id: "opencode-go-usage",
       icon: "window-analytics",
       get title() {
-        return "Go usage"
+        return `${goPlanName(state.plan())} usage`
       },
       entries: [
         {
           id: "usage",
-          title: "Go usage",
-          description: "OpenCode Go limits and reset times",
+          get title() {
+            return `${goPlanName(state.plan())} usage`
+          },
+          get description() {
+            return `OpenCode ${goPlanName(state.plan())} limits and reset times`
+          },
           keywords: "usage limits go subscription",
         },
       ],
@@ -32,8 +36,8 @@ export default Plugin.define({
 
     ctx.add(Command, {
       id: "open",
-      title: "OpenCode Go usage",
-      description: "See your Go 5-hour, weekly, and monthly limits",
+      title: "OpenCode plan usage",
+      description: "See your plan's 5-hour, weekly, and monthly limits",
       group: "View",
       run: () => ctx.layout.settings("opencode-go-usage"),
     })
