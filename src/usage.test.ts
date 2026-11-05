@@ -4,6 +4,7 @@ import {
   cacheKey,
   cacheTtl,
   clampPercent,
+  configuredPlan,
   dataOf,
   formatPercent,
   formatPercent1,
@@ -12,11 +13,13 @@ import {
   formatUnitUSD,
   formatUSD,
   formatUpdated,
+  goPlanName,
   mergeModelUsage,
   modelAllowance,
   modelDisplayName,
   noticeFor,
   parseConsoleModels,
+  parseGoPlan,
   parseStatsModels,
   parseUsageLimits,
   parseUsageResponse,
@@ -278,8 +281,19 @@ it("calculates per-model window percentages and allowances", () => {
   expect(windowPercent(50, undefined, "monthly")).toBeUndefined()
   expect(modelAllowance("deepseek-v4.1-flash")).toBe(100)
   expect(modelAllowance("deepseek-v4-pro")).toBe(15)
+  expect(modelAllowance("deepseek-v4.1-flash", undefined, "go-plus")).toBe(200)
+  expect(modelAllowance("deepseek-v4-pro", undefined, "go-plus")).toBe(60)
+  expect(modelAllowance("deepseek-v4.1-flash", undefined, "go-teams")).toBe(105)
+  expect(modelAllowance("deepseek-v4-pro", undefined, "go-teams")).toBe(20)
+  expect(modelAllowance("hy4", undefined, "go-teams")).toBe(65)
   expect(modelAllowance("deepseek-v4.1-flash", { "deepseek-v4.1-flash": 16 })).toBe(16)
+  expect(modelAllowance("deepseek-v4.1-flash", { "deepseek-v4.1-flash": 16 }, "go-teams")).toBe(16)
   expect(modelAllowance("unknown")).toBeUndefined()
+  expect(configuredPlan("go-plus")).toBe("go-plus")
+  expect(configuredPlan("go-teams")).toBe("go-teams")
+  expect(configuredPlan("other")).toBeUndefined()
+  expect(goPlanName("go-plus")).toBe("Go Plus")
+  expect(goPlanName("go-teams")).toBe("Go Teams")
   expect(modelDisplayName("deepseek-v4-pro")).toBe("DeepSeek V4 Pro")
   expect(modelDisplayName("some-new-model")).toBe("Some New Model")
   expect(subtractMonth(Date.UTC(2026, 10, 22))).toBe(Date.UTC(2026, 9, 22))
@@ -292,6 +306,52 @@ it("calculates per-model window percentages and allowances", () => {
   expect(formatUnitUSD(0)).toBe("$0.00")
   expect(formatPercent1(12.58)).toBe("12.6%")
   expect(formatTokens(1_200_000)).toBe("1.2M")
+})
+
+it("detects the active Go plan from the latest paid Console invoice", () => {
+  expect(
+    parseGoPlan([
+      {
+        attemptType: "go_initial",
+        product: "go",
+        status: "paid",
+        paidAt: "2026-10-22T04:08:19.000Z",
+      },
+      {
+        attemptType: "go_upgrade",
+        product: "go-teams",
+        status: "paid",
+        paidAt: "2026-11-05T07:00:06.000Z",
+      },
+      {
+        attemptType: "go_upgrade",
+        product: "go-plus",
+        status: "pending",
+        paidAt: "2026-12-01T00:00:00.000Z",
+      },
+    ]),
+  ).toBe("go-teams")
+  expect(
+    parseGoPlan([
+      {
+        attemptType: "go_renewal",
+        product: "go-plus",
+        status: "paid",
+        paidAt: "2026-11-20T00:00:00.000Z",
+      },
+    ]),
+  ).toBe("go-plus")
+  expect(
+    parseGoPlan([
+      {
+        attemptType: "credit_purchase",
+        product: "go-teams",
+        status: "paid",
+        paidAt: "2026-11-20T00:00:00.000Z",
+      },
+    ]),
+  ).toBeUndefined()
+  expect(parseGoPlan({})).toBeUndefined()
 })
 
 it("parses Console per-model costs and token totals", () => {

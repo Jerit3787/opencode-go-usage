@@ -225,6 +225,19 @@ it("returns Console per-model spend for the signed-in workspace", async () => {
       if (url.includes("/console/api/usage/models")) {
         return new Response(JSON.stringify(models), { status: 200 })
       }
+      if (url.includes("/console/api/billing/credit-invoices")) {
+        return new Response(
+          JSON.stringify([
+            {
+              attemptType: "go_upgrade",
+              product: "go-teams",
+              status: "paid",
+              paidAt: "2026-11-05T07:00:06.000Z",
+            },
+          ]),
+          { status: 200 },
+        )
+      }
       throw new Error(`unexpected request ${url}`)
     }),
   )
@@ -235,6 +248,7 @@ it("returns Console per-model spend for the signed-in workspace", async () => {
   if (result.state === "ok") {
     expect(result.data.range).toBe("30d")
     expect(result.data.source).toBe("server")
+    expect(result.data.plan).toBe("go-teams")
     expect(result.data.models).toHaveLength(2)
     expect(result.data.models[0].modelID).toBe("deepseek-v4.1-flash")
     expect(result.data.models[0].cost).toBeCloseTo(31.6347074)

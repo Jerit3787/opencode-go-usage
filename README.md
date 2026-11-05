@@ -30,7 +30,7 @@ When the desktop app is signed in to OpenCode Console, the plugin prefers the ap
 The plugin also reads the Console per-model activity endpoint from the same signed-in workspace:
 
 ```text
-GET https://opencode.ai/console/api/usage/models?range=30d&pageSize=100
+GET https://opencode.ai/console/api/usage/models?from=YYYY-MM-DD&to=YYYY-MM-DD&pageSize=100
 ```
 
 It returns requests, tokens, and list cost per model. Those costs feed the per-model card. The Console token never leaves the main process and is never returned to the window.
@@ -39,7 +39,7 @@ If the active server is remote (for example, an OpenCode instance reached over S
 
 ## Model breakdown
 
-When Console is connected, the card uses Console activity for the **last 30 days**. It shows each Go model's Console cost, monthly limit, contribution, requests, tokens, average cost per 1M tokens, and average cost per request, then:
+When Console is connected, the card uses Console activity for the **current Go monthly period** (falling back to the last 30 days if the reset is unknown). It shows each Go model's Console cost, monthly limit, contribution, requests, tokens, average cost per 1M tokens, and average cost per request, then:
 
 - **Calculated monthly** — the sum of `model cost ÷ model monthly limit`
 - **Server monthly** — the meter returned by the Go usage endpoint
@@ -54,13 +54,20 @@ model weekly %  = cost in the current UTC week  ÷ (50% of the monthly limit)
 total monthly % = Σ model monthly %
 ```
 
-The `$60` Go pool cancels out: `allowance = cost × (60 ÷ model limit)`, so `Σ allowance ÷ 60` is the same as `Σ cost ÷ model limit`.
+The plan pool cancels out: `allowance = cost × (plan pool ÷ model limit)`, so `Σ allowance ÷ plan pool` is the same as `Σ cost ÷ model limit`. The pool is `$60` for Go and Go Teams, and `$240` for Go Plus.
 
 The 5-hour window starts at the first request after reset, not a fixed trailing 5 hours. The weekly window is the UTC calendar week, not a trailing 7 days.
 
 Console cost includes peak pricing: **2× on weekdays 01:00–04:00 and 06:00–10:00 UTC**. The Console Activity table shows one aggregate cost per model; it does not split peak and off-peak.
 
-The defaults are **DeepSeek V4.1 Flash $100** and **DeepSeek V4 Pro $15**, matching the [public Go table](https://opencode.ai/v2/docs/console/go#usage-limits). Set the `allowances` option if your workspace has different limits.
+The plugin auto-detects **Go**, **Go Plus**, or **Go Teams** from the latest paid `go_*` invoice at `/api/billing/credit-invoices`. Each plan has its own per-model limits, for example:
+
+| Model | Go | Go Plus | Go Teams |
+|---|---:|---:|---:|
+| DeepSeek V4.1 Flash | $100 | $200 | $105 |
+| DeepSeek V4 Pro | $15 | $60 | $20 |
+
+If the billing endpoint is unavailable, set the `plan` option. The full tables are in the [public Go pricing page](https://opencode.ai/v2/docs/console/go#usage-limits).
 
 Overrides require the object form of the plugin entry:
 
@@ -70,9 +77,10 @@ Overrides require the object form of the plugin entry:
     {
       "package": "/absolute/path/to/opencode-go-usage",
       "options": {
+        "plan": "go-teams",
         "allowances": {
-          "deepseek-v4.1-flash": 100,
-          "deepseek-v4-pro": 15
+          "deepseek-v4.1-flash": 105,
+          "deepseek-v4-pro": 20
         }
       }
     }
@@ -120,7 +128,7 @@ Remove the plugin directory entry from `plugins` in `~/.config/opencode/opencode
 - The Go key is used only for the Go usage GET. The Console token is used only for the Console usage GETs.
 - Neither secret is returned to the window, written to plugin storage, or logged.
 - The plugin sends no telemetry, prompts, code, or session content.
-- The only requests are the local OpenCode credential read, the local session-stats read, the local Console usage-limits read, the Console per-model usage read, and the Go usage GET.
+- The only requests are the local OpenCode credential read, the local session-stats read, the local Console usage-limits read, the Console per-model usage read, the Console billing-invoice read, and the Go usage GET.
 - The model breakdown reads only model IDs, costs, and token counts; it never reads prompts or message content.
 - Only percentages, reset times, model spend, and token counts are displayed.
 

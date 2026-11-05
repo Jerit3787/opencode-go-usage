@@ -150,9 +150,10 @@ export function ModelBreakdown(props: { state: UsageState; ctx: Context; ui: Ui 
     }
     return allowances
   }
-  const totalMonthly = () => totalModelPercent(models(), overrides(), "monthly")
-  const totalWeekly = () => totalModelPercent(models(), overrides(), "weekly")
-  const totalRolling = () => totalModelPercent(models(), overrides(), "rolling")
+  const plan = () => props.state.plan()
+  const totalMonthly = () => totalModelPercent(models(), overrides(), "monthly", plan())
+  const totalWeekly = () => totalModelPercent(models(), overrides(), "weekly", plan())
+  const totalRolling = () => totalModelPercent(models(), overrides(), "rolling", plan())
   const totalTone = () => usageTone(totalMonthly(), false)
   const contributions = () =>
     models().map((model, index) => ({
@@ -160,7 +161,7 @@ export function ModelBreakdown(props: { state: UsageState; ctx: Context; ui: Ui 
       percent:
         windowPercent(
           model.monthlyCost,
-          modelAllowance(model.modelID, overrides()),
+          modelAllowance(model.modelID, overrides(), plan()),
           "monthly",
         ) ?? 0,
       color: MODEL_COLORS[index % MODEL_COLORS.length],
@@ -240,7 +241,7 @@ export function ModelBreakdown(props: { state: UsageState; ctx: Context; ui: Ui 
           {(model, index) => (
             <ModelRow
               model={model}
-              allowance={modelAllowance(model.modelID, overrides())}
+              allowance={modelAllowance(model.modelID, overrides(), plan())}
               color={MODEL_COLORS[index() % MODEL_COLORS.length]}
             />
           )}

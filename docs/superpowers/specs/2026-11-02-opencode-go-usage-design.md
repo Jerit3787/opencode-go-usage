@@ -42,9 +42,11 @@ The app already ships a Usage page, but it reads `/api/experimental/usage/limits
 1. The signed-in Console workspace through the app's `GET /api/experimental/usage/limits` endpoint. It returns the workspace (`id`, `name`, `usageURL`) and the same `go` meters.
 2. The Go API key endpoint `GET https://opencode.ai/zen/go/v1/usage` when Console is not connected.
 
-The Console endpoint does not expose per-model activity, but the signed-in Console workspace does through `GET /console/api/usage/models?range=30d&pageSize=100`. The plugin reads that endpoint from the main process using the stored Console OAuth credential and `x-org-id`. The response supplies per-model requests, tokens, and list cost for the last 30 days. The **View in Console** action opens the workspace `usageURL`.
+The Console endpoint does not expose per-model activity, but the signed-in Console workspace does through `GET /console/api/usage/models?from=YYYY-MM-DD&to=YYYY-MM-DD&pageSize=100` (or `range=30d` when the monthly reset is unknown). The plugin reads that endpoint from the main process using the stored Console OAuth credential and `x-org-id`. The response supplies per-model requests, tokens, and list cost. The **View in Console** action opens the workspace `usageURL`.
 
 The per-model source order is the active server's `/api/credential` first, then the local desktop's `/api/credential` when the active server is remote. A remote server reached over SSH often has no Console sign-in; the desktop's Console account is account-wide and still covers the remote Go usage. The result carries `source: "server" | "desktop"`, and the card labels the desktop fallback.
+
+The same Console credential reads `GET /console/api/billing/credit-invoices`. The latest paid invoice whose `attemptType` starts with `go_` identifies the plan from `product`: `go`, `go-plus`, or `go-teams`. The result carries `plan`, and the card labels it. If the billing read fails, the plugin uses the `plan` option, then defaults to `go`.
 
 The Go usage endpoint uses `Authorization: Bearer <key>`. Response:
   ```json
@@ -215,10 +217,10 @@ Updated 2:32 PM                          See all →
 
 ### Model breakdown
 
-The settings page shows a per-model analytics card. When Console is connected, the card uses Console activity for the last 30 days:
+The settings page shows a per-model analytics card. When Console is connected, the card uses Console activity for the current Go monthly period, derived from `windows.monthly.resetsAt` and passed as `from`/`to` dates. If the reset is unknown it uses the last 30 days:
 
 ```text
-GET https://opencode.ai/console/api/usage/models?range=30d&pageSize=100
+GET https://opencode.ai/console/api/usage/models?from=YYYY-MM-DD&to=YYYY-MM-DD&pageSize=100
 Authorization: Bearer <Console OAuth token>
 x-org-id: <workspace id>
 ```
@@ -238,11 +240,13 @@ model weekly %  = cost in the current UTC week  ÷ (50% of the monthly limit)
 total monthly % = Σ model monthly %
 ```
 
-The `$60` Go pool cancels out: `allowance = cost × (60 ÷ model limit)`, so `Σ allowance ÷ 60` is the same as `Σ cost ÷ model limit`. The 5-hour window starts at the first request after reset; the weekly window is the UTC calendar week.
+The plan pool cancels out: `allowance = cost × (plan pool ÷ model limit)`, so `Σ allowance ÷ plan pool` is the same as `Σ cost ÷ model limit`. The pool is `$60` for Go and Go Teams, and `$240` for Go Plus. The 5-hour window starts at the first request after reset; the weekly window is the UTC calendar week.
+
+Per-model limits come from the matching public plan table. Examples: DeepSeek V4.1 Flash is `$100 / $200 / $105` and DeepSeek V4 Pro is `$15 / $60 / $20` for Go / Go Plus / Go Teams.
 
 Console cost includes peak pricing: 2× on weekdays 01:00–04:00 and 06:00–10:00 UTC. The Console Activity table does not split peak and off-peak; the card links to the public pricing table.
 
-Defaults are DeepSeek V4.1 Flash $100 and DeepSeek V4 Pro $15, matching the public Go table. The plugin option `allowances` is a `Record<modelID, number>` override. The card never infers an allowance to force the server meter to match. If Console is not connected, it falls back to local OpenCode server session stats (`/api/experimental/session/stats`, `tools=none`) and labels the source as local. The local fallback reads model IDs, costs, and token counts only, never prompts or message content.
+The plan-specific tables are the source of truth. The plugin option `plan` is a `"go" | "go-plus" | "go-teams"` fallback when billing detection is unavailable. The plugin option `allowances` is a `Record<modelID, number>` override. The card never infers an allowance to force the server meter to match. If Console is not connected, it falls back to local OpenCode server session stats (`/api/experimental/session/stats`, `tools=none`) and labels the source as local. The local fallback reads model IDs, costs, and token counts only, never prompts or message content.
 
 ### States
 

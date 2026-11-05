@@ -24,8 +24,12 @@ const ROWS = [
     body: "Authoritative. The model card shows the calculated total and the server monthly meter separately.",
   },
   {
+    label: "Plan",
+    body: "Go, Go Plus, or Go Teams is detected from the latest Console billing invoice. Each plan has different per-model limits.",
+  },
+  {
     label: "Source",
-    body: "Console activity for the last 30 days. If the active server is remote and has no Console sign-in, the desktop's Console account is used. Otherwise the card falls back to local session stats.",
+    body: "Console activity for the current Go monthly period, or the last 30 days when the reset is unknown. If the active server is remote and has no Console sign-in, the desktop's Console account is used. Otherwise the card falls back to local session stats.",
   },
 ]
 

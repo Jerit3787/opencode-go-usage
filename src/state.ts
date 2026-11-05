@@ -2,12 +2,14 @@ import { createEffect, createSignal, onCleanup } from "solid-js"
 import type { Context } from "@opencode/plugin/gui"
 import { UsageIpc } from "./contract"
 import {
+  configuredPlan,
   dataOf,
   mergeModelUsage,
   parseStatsModels,
   subtractMonth,
   withStaleData,
   type ConsoleModelResult,
+  type GoPlan,
   type ModelAnalyticsResult,
   type UsageResult,
 } from "./usage"
@@ -20,6 +22,7 @@ export type UsageState = {
   modelsLoading: () => boolean
   consoleModels: () => ConsoleModelResult | undefined
   consoleModelsLoading: () => boolean
+  plan: () => GoPlan
   server: () => string | undefined
   refresh(opts?: { force?: boolean; server?: string }): Promise<void>
   refreshModels(opts?: { force?: boolean; server?: string }): Promise<void>
@@ -89,8 +92,21 @@ export function createUsageState(ctx: Context): UsageState {
     setConsoleModelsLoading(true)
 
     try {
-      const input: { server?: string; force?: boolean } = { server: target }
+      const current = resultServer() === target ? dataOf(rawResult()) : undefined
+      const monthlyReset = current?.windows.monthly.resetsAt
+      const from =
+        monthlyReset && monthlyReset > 0
+          ? new Date(subtractMonth(monthlyReset)).toISOString().slice(0, 10)
+          : undefined
+      const to = from ? new Date().toISOString().slice(0, 10) : undefined
+      const input: { server?: string; force?: boolean; from?: string; to?: string } = {
+        server: target,
+      }
       if (opts.force) input.force = true
+      if (from && to) {
+        input.from = from
+        input.to = to
+      }
       const result = await ctx.main(UsageIpc).consoleModels(input)
       if (request !== consoleGeneration) return
       setConsoleModels(result)
@@ -177,6 +193,11 @@ export function createUsageState(ctx: Context): UsageState {
     modelsLoading,
     consoleModels,
     consoleModelsLoading,
+    plan: () => {
+      const result = consoleModels()
+      if (result?.state === "ok") return result.data.plan
+      return configuredPlan(ctx.options.plan) ?? "go"
+    },
     server,
     refresh,
     refreshModels,

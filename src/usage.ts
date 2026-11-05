@@ -75,11 +75,22 @@ export type ConsoleModelUsage = {
   cacheWrite1hTokens: number
 }
 
+export type GoPlan = "go" | "go-plus" | "go-teams"
+
+export const GO_PLAN_NAMES: Record<GoPlan, string> = {
+  go: "Go",
+  "go-plus": "Go Plus",
+  "go-teams": "Go Teams",
+}
+
 export type ConsoleModelAnalytics = {
   models: readonly ConsoleModelUsage[]
-  range: "30d"
+  range: "30d" | "period"
+  from?: string
+  to?: string
   totalCost: number
   source: "server" | "desktop"
+  plan: GoPlan
 }
 
 export type ConsoleModelResult =
@@ -91,36 +102,106 @@ export type ConsoleModelResult =
 // Pulled 2026-11-02.
 export const GO_PRICING_URL = "https://opencode.ai/v2/docs/console/go#usage-limits"
 
-export const GO_MONTHLY_ALLOWANCES: Record<string, number> = {
-  "glm-5.3-flash": 60,
-  "glm-5.3": 15,
-  "glm-5.2": 60,
-  "kimi-k3.1-pro": 15,
-  "kimi-k3": 15,
-  "kimi-k2.7-code": 60,
-  "longcat-2.0": 60,
-  "step-5-preview": 15,
-  "mimo-v2.6-flash": 60,
-  "mimo-v2.6-pro": 15,
-  "mimo-v2.5": 60,
-  "mimo-v2.5-pro": 15,
-  "minimax-m3.1-flash": 20,
-  "minimax-m3": 60,
-  "muse-spark-1.3-contributor": 60,
-  "muse-spark-1.2-contributor": 60,
-  "qwen3.8-max": 15,
-  "qwen3.8-flash": 30,
-  "qwen3.7-plus": 60,
-  "deepseek-v4.1-flash": 100,
-  "deepseek-v4-pro": 15,
-  "hy4-preview": 30,
-  "hy3": 60,
-  "grok-4.7": 15,
-  "gpt-6-luna": 15,
-  "gpt-5.6-luna": 15,
-  "claude-haiku-5-5": 15,
-  "gemini-4-argon": 30,
+// Per-model monthly allowances from the plan tables:
+// https://opencode.ai/v2/docs/console/go#usage-limits
+// Pulled 2026-11-05.
+export const GO_PLAN_ALLOWANCES: Record<GoPlan, Record<string, number>> = {
+  go: {
+    "glm-5.3-flash": 60,
+    "glm-5.3": 15,
+    "glm-5.2": 60,
+    "kimi-k3.1-pro": 15,
+    "kimi-k3": 15,
+    "kimi-k2.7-code": 60,
+    "longcat-2.0": 60,
+    "step-5-preview": 15,
+    "mimo-v2.6-flash": 60,
+    "mimo-v2.6-pro": 15,
+    "mimo-v2.5": 60,
+    "mimo-v2.5-pro": 15,
+    "minimax-m3.1-flash": 20,
+    "minimax-m3": 60,
+    "muse-spark-1.3-contributor": 60,
+    "muse-spark-1.2-contributor": 60,
+    "qwen3.8-max": 15,
+    "qwen3.8-flash": 30,
+    "qwen3.7-plus": 60,
+    "deepseek-v4.1-flash": 100,
+    "deepseek-v4-pro": 15,
+    hy4: 60,
+    "hy4-preview": 30,
+    hy3: 60,
+    "grok-4.7": 15,
+    "gpt-6-luna": 15,
+    "gpt-5.6-luna": 15,
+    "claude-haiku-5-5": 15,
+    "gemini-4-argon": 30,
+  },
+  "go-plus": {
+    "glm-5.3-flash": 180,
+    "glm-5.3": 120,
+    "glm-5.2": 180,
+    "kimi-k3.1-pro": 60,
+    "kimi-k3": 60,
+    "kimi-k2.7-code": 180,
+    "longcat-2.0": 240,
+    "step-5-preview": 60,
+    "mimo-v2.6-flash": 120,
+    "mimo-v2.6-pro": 60,
+    "mimo-v2.5": 120,
+    "mimo-v2.5-pro": 60,
+    "minimax-m3.1-flash": 80,
+    "minimax-m3": 180,
+    "muse-spark-1.3-contributor": 120,
+    "muse-spark-1.2-contributor": 120,
+    "qwen3.8-max": 60,
+    "qwen3.8-flash": 90,
+    "qwen3.7-plus": 180,
+    "deepseek-v4.1-flash": 200,
+    "deepseek-v4-pro": 60,
+    hy4: 240,
+    "hy4-preview": 120,
+    hy3: 240,
+    "grok-4.7": 60,
+    "gpt-6-luna": 60,
+    "gpt-5.6-luna": 60,
+    "claude-haiku-5-5": 60,
+    "gemini-4-argon": 120,
+  },
+  "go-teams": {
+    "glm-5.3-flash": 65,
+    "glm-5.3": 20,
+    "glm-5.2": 65,
+    "kimi-k3.1-pro": 20,
+    "kimi-k3": 20,
+    "kimi-k2.7-code": 65,
+    "longcat-2.0": 65,
+    "step-5-preview": 20,
+    "mimo-v2.6-flash": 65,
+    "mimo-v2.6-pro": 20,
+    "mimo-v2.5": 65,
+    "mimo-v2.5-pro": 20,
+    "minimax-m3.1-flash": 25,
+    "minimax-m3": 65,
+    "muse-spark-1.3-contributor": 65,
+    "muse-spark-1.2-contributor": 65,
+    "qwen3.8-max": 20,
+    "qwen3.8-flash": 35,
+    "qwen3.7-plus": 65,
+    "deepseek-v4.1-flash": 105,
+    "deepseek-v4-pro": 20,
+    hy4: 65,
+    "hy4-preview": 35,
+    hy3: 65,
+    "grok-4.7": 20,
+    "gpt-6-luna": 20,
+    "gpt-5.6-luna": 20,
+    "claude-haiku-5-5": 20,
+    "gemini-4-argon": 35,
+  },
 }
+
+export const GO_MONTHLY_ALLOWANCES = GO_PLAN_ALLOWANCES.go
 
 const GO_MODEL_NAMES: Record<string, string> = {
   "glm-5.3-flash": "GLM 5.3 Flash",
@@ -144,6 +225,7 @@ const GO_MODEL_NAMES: Record<string, string> = {
   "qwen3.7-plus": "Qwen3.7 Plus",
   "deepseek-v4.1-flash": "DeepSeek V4.1 Flash",
   "deepseek-v4-pro": "DeepSeek V4 Pro",
+  hy4: "Hy4",
   "hy4-preview": "Hy4 Preview",
   "hy3": "Hy3",
   "grok-4.7": "Grok 4.7",
@@ -449,15 +531,49 @@ export function modelDisplayName(modelID: string): string {
     .join(" ")
 }
 
+export function configuredPlan(value: unknown): GoPlan | undefined {
+  if (value === "go" || value === "go-plus" || value === "go-teams") return value
+  return undefined
+}
+
+export function parseGoPlan(body: unknown): GoPlan | undefined {
+  if (!Array.isArray(body)) return undefined
+
+  let latest: { plan: GoPlan; paidAt: number } | undefined
+  for (const entry of body) {
+    if (
+      !isRecord(entry) ||
+      entry.status !== "paid" ||
+      typeof entry.product !== "string" ||
+      typeof entry.attemptType !== "string" ||
+      !entry.attemptType.startsWith("go_")
+    ) {
+      continue
+    }
+
+    const plan = configuredPlan(entry.product)
+    if (!plan) continue
+    const paidAt = parseTimestamp(entry.paidAt)
+    if (!latest || paidAt >= latest.paidAt) latest = { plan, paidAt }
+  }
+
+  return latest?.plan
+}
+
+export function goPlanName(plan: GoPlan): string {
+  return GO_PLAN_NAMES[plan]
+}
+
 export function modelAllowance(
   modelID: string,
   overrides?: Record<string, number>,
+  plan: GoPlan = "go",
 ): number | undefined {
   const override = overrides?.[modelID]
   if (typeof override === "number" && Number.isFinite(override) && override > 0) {
     return override
   }
-  return GO_MONTHLY_ALLOWANCES[modelID]
+  return GO_PLAN_ALLOWANCES[plan][modelID]
 }
 
 function countTokens(tokens: Record<string, unknown>): number {
@@ -607,6 +723,7 @@ export function totalModelPercent(
   models: readonly ModelUsage[],
   overrides: Record<string, number> | undefined,
   kind: WindowKey,
+  plan: GoPlan = "go",
 ): number {
   return models.reduce((total, model) => {
     const cost =
@@ -615,7 +732,7 @@ export function totalModelPercent(
         : kind === "weekly"
           ? model.weeklyCost
           : model.monthlyCost
-    const allowance = modelAllowance(model.modelID, overrides)
+    const allowance = modelAllowance(model.modelID, overrides, plan)
     return total + (windowPercent(cost, allowance, kind) ?? 0)
   }, 0)
 }

@@ -9,6 +9,7 @@ import {
   formatTokens,
   formatUnitUSD,
   formatUSD,
+  goPlanName,
   modelAllowance,
   usageColor,
   usageTone,
@@ -151,6 +152,7 @@ export function ConsoleBreakdown(props: { state: UsageState; ctx: Context }) {
     const result = props.state.consoleModels()
     return result?.state === "ok" ? result.data : undefined
   }
+  const plan = () => data()?.plan ?? "go"
   const overrides = () => {
     const value = props.ctx.options.allowances
     if (!value || typeof value !== "object") return {}
@@ -165,7 +167,7 @@ export function ConsoleBreakdown(props: { state: UsageState; ctx: Context }) {
   const rows = (): Row[] => {
     return (data()?.models ?? [])
       .map((model, index) => {
-        const limit = modelAllowance(model.modelID, overrides())
+        const limit = modelAllowance(model.modelID, overrides(), plan())
         return {
           model,
           limit,
@@ -212,9 +214,10 @@ export function ConsoleBreakdown(props: { state: UsageState; ctx: Context }) {
             Model breakdown
           </div>
           <div style={{ "font-size": "12px", color: "var(--v2-text-text-muted)" }}>
-            {data()?.source === "desktop"
-              ? "Console account · last 30 days · via this desktop"
-              : "Console spend · last 30 days"}
+            {`Console · ${goPlanName(plan())} · ${
+              data()?.range === "period" ? "current Go month" : "last 30 days"
+            }`}
+            {data()?.source === "desktop" ? " · via this desktop" : ""}
           </div>
         </div>
         <div style={{ "font-size": "12px", color: "var(--v2-text-text-muted)" }}>

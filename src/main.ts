@@ -14,12 +14,15 @@ import { requestUsage } from "./request"
 import {
   cacheKey,
   cacheTtl,
+  configuredPlan,
   dataOf,
   parseConsoleModels,
+  parseGoPlan,
   parseUsageLimits,
   pruneOldest,
   withStaleData,
   type ConsoleModelResult,
+  type GoPlan,
   type UsageData,
   type UsageResult,
 } from "./usage"
@@ -107,6 +110,8 @@ export const main: Plugin.MainSetup = (ctx) => {
   const fetchConsoleModels = async (
     endpoint: ServerEndpoint,
     source: "server" | "desktop",
+    from?: string,
+    to?: string,
   ): Promise<ConsoleModelResult> => {
     const entries = await readCredentialEntries(endpoint)
     if (!entries) {
@@ -126,23 +131,35 @@ export const main: Plugin.MainSetup = (ctx) => {
 
     try {
       const base = console.server.replace(/\/+$/, "")
-      const response = await fetch(`${base}/api/usage/models?range=30d&pageSize=100`, {
-        headers: {
-          Authorization: `Bearer ${console.access}`,
-          "x-org-id": console.orgID,
-          Accept: "application/json",
-          "User-Agent": "opencode-go-usage/0.1.0",
-        },
-        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-      })
-      if (!response.ok) {
+      const headers = {
+        Authorization: `Bearer ${console.access}`,
+        "x-org-id": console.orgID,
+        Accept: "application/json",
+        "User-Agent": "opencode-go-usage/0.1.0",
+      }
+      const range =
+        from && to
+          ? `from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
+          : "range=30d"
+      const [modelsResponse, invoicesResponse] = await Promise.all([
+        fetch(`${base}/api/usage/models?${range}&pageSize=100`, {
+          headers,
+          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        }),
+        fetch(`${base}/api/billing/credit-invoices`, {
+          headers,
+          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        }).catch(() => undefined),
+      ])
+
+      if (!modelsResponse.ok) {
         return {
           state: "error",
-          message: `Console model usage is unavailable (HTTP ${response.status}).`,
+          message: `Console model usage is unavailable (HTTP ${modelsResponse.status}).`,
         }
       }
 
-      const models = parseConsoleModels(await response.json())
+      const models = parseConsoleModels(await modelsResponse.json())
       if (models.length === 0) {
         return {
           state: "error",
@@ -150,8 +167,28 @@ export const main: Plugin.MainSetup = (ctx) => {
         }
       }
 
+      let plan: GoPlan = configuredPlan(ctx.options?.plan) ?? "go"
+      if (invoicesResponse?.ok) {
+        try {
+          plan = parseGoPlan(await invoicesResponse.json()) ?? plan
+        } catch {
+          // Keep the configured/default plan if the billing payload is malformed.
+        }
+      }
+
       const totalCost = models.reduce((total, model) => total + model.cost, 0)
-      return { state: "ok", data: { models, range: "30d", totalCost, source } }
+      return {
+        state: "ok",
+        data: {
+          models,
+          range: from && to ? "period" : "30d",
+          from: from && to ? from : undefined,
+          to: from && to ? to : undefined,
+          totalCost,
+          source,
+          plan,
+        },
+      }
     } catch {
       return {
         state: "error",
@@ -292,7 +329,8 @@ export const main: Plugin.MainSetup = (ctx) => {
 
     async consoleModels(input): Promise<ConsoleModelResult> {
       const serverID = input.server ?? "sidecar"
-      const cached = consoleModelCache.get(serverID)
+      const modelCacheKey = `${serverID}:${input.from ?? "30d"}:${input.to ?? ""}`
+      const cached = consoleModelCache.get(modelCacheKey)
       if (!input.force && cached && Date.now() - cached.at < MODEL_CACHE_TTL_MS) {
         return cached.result
       }
@@ -322,14 +360,19 @@ export const main: Plugin.MainSetup = (ctx) => {
 
       let lastError: Extract<ConsoleModelResult, { state: "error" }> | undefined
       for (const candidate of candidates) {
-        const result = await fetchConsoleModels(candidate.endpoint, candidate.source)
+        const result = await fetchConsoleModels(
+          candidate.endpoint,
+          candidate.source,
+          input.from,
+          input.to,
+        )
         if (result.state === "ok") {
           if (candidate.source === "desktop") {
             ctx.log.write("info", "opencode-go console models using this desktop", {
               server: serverID,
             })
           }
-          consoleModelCache.set(serverID, { at: Date.now(), result })
+          consoleModelCache.set(modelCacheKey, { at: Date.now(), result })
           pruneOldest(consoleModelCache, MAX_ENTRIES)
           return result
         }
