@@ -341,13 +341,19 @@ export const main: Plugin.MainSetup = (ctx) => {
         source: "server" | "desktop"
       }> = []
       const target = ctx.serverEndpoints.get(serverID)
-      if (target) {
-        candidates.push({ id: serverID, endpoint: target, source: "server" })
-      }
-      if (serverID !== "sidecar") {
+      if (serverID === "sidecar") {
+        if (target) {
+          candidates.push({ id: serverID, endpoint: target, source: "server" })
+        }
+      } else {
+        // The desktop holds the primary Console sign-in. A remote SSH server may
+        // have an older or unrelated Console workspace, so prefer this desktop.
         const desktop = ctx.serverEndpoints.get("sidecar")
         if (desktop) {
           candidates.push({ id: "sidecar", endpoint: desktop, source: "desktop" })
+        }
+        if (target) {
+          candidates.push({ id: serverID, endpoint: target, source: "server" })
         }
       }
 

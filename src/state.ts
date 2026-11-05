@@ -107,7 +107,19 @@ export function createUsageState(ctx: Context): UsageState {
         input.from = from
         input.to = to
       }
-      const result = await ctx.main(UsageIpc).consoleModels(input)
+
+      // The desktop is the primary Console account. Remote servers may have an
+      // older or unrelated Console workspace, so try the desktop first.
+      let result =
+        target === "sidecar"
+          ? await ctx.main(UsageIpc).consoleModels(input)
+          : await ctx.main(UsageIpc).consoleModels({ ...input, server: "sidecar" })
+      if (result.state !== "ok" && target !== "sidecar") {
+        result = await ctx.main(UsageIpc).consoleModels(input)
+      }
+      if (target !== "sidecar" && result.state === "ok" && result.data.source === "server") {
+        result = { ...result, data: { ...result.data, source: "desktop" } }
+      }
       if (request !== consoleGeneration) return
       setConsoleModels(result)
     } catch {

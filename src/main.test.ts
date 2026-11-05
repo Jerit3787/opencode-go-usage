@@ -264,7 +264,7 @@ it("returns Console per-model spend for the signed-in workspace", async () => {
   expect(calls.filter((url) => url.includes("/console/api/usage/models"))).toHaveLength(1)
 })
 
-it("uses this desktop's Console account when the active server has none", async () => {
+it("prefers this desktop's Console account for a remote server", async () => {
   const consoleCredential = {
     id: "console",
     integrationID: "opencode",
@@ -321,8 +321,69 @@ it("uses this desktop's Console account when the active server has none", async 
     expect(result.data.source).toBe("desktop")
     expect(result.data.models[0].modelID).toBe("deepseek-v4.1-flash")
   }
-  expect(calls.some((url) => url.startsWith("http://remote:1234/api/credential"))).toBe(true)
   expect(calls.some((url) => url.startsWith("http://sidecar:1234/api/credential"))).toBe(true)
+  expect(calls.some((url) => url.startsWith("http://remote:1234/api/credential"))).toBe(false)
+})
+
+it("falls back to the remote Console account when the desktop has none", async () => {
+  const remoteConsole = {
+    id: "remote-console",
+    integrationID: "opencode",
+    label: "Remote",
+    active: true,
+    value: {
+      type: "oauth",
+      access: "remote-access",
+      metadata: {
+        server: "https://opencode.ai/console",
+        orgID: "org_remote",
+      },
+    },
+  }
+  const models = {
+    items: [
+      {
+        provider: "opencode-go",
+        model: "deepseek-v4-pro",
+        totalCostMicroCents: "742366702",
+        totalRequests: "686",
+        totalInputTokens: "2946923",
+        totalOutputTokens: "530766",
+        totalCacheReadTokens: "139498752",
+      },
+    ],
+  }
+  const calls: string[] = []
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string | URL | Request) => {
+      const url = String(input)
+      calls.push(url)
+      if (url.startsWith("http://sidecar:1234/api/credential")) {
+        return new Response(JSON.stringify(credentialBody), { status: 200 })
+      }
+      if (url.startsWith("http://remote:1234/api/credential")) {
+        return new Response(JSON.stringify({ data: [remoteConsole] }), { status: 200 })
+      }
+      if (url.includes("/console/api/usage/models")) {
+        return new Response(JSON.stringify(models), { status: 200 })
+      }
+      if (url.includes("/console/api/billing/credit-invoices")) {
+        return new Response("[]", { status: 200 })
+      }
+      throw new Error(`unexpected request ${url}`)
+    }),
+  )
+
+  const api = setup()
+  const result = await api.consoleModels({ server: "remote" })
+  expect(result.state).toBe("ok")
+  if (result.state === "ok") {
+    expect(result.data.source).toBe("server")
+    expect(result.data.plan).toBe("go")
+  }
+  expect(calls.some((url) => url.startsWith("http://sidecar:1234/api/credential"))).toBe(true)
+  expect(calls.some((url) => url.startsWith("http://remote:1234/api/credential"))).toBe(true)
 })
 
 it("reports an error when Console isn't signed in for per-model spend", async () => {

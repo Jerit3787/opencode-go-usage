@@ -66,11 +66,14 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
   }
 
   onMount(() => {
-    void props.state.refreshModels()
-    if (props.state.loading()) return
-    const current = dataOf(props.state.result())
-    if (!current) void props.state.refresh()
-    else if (Date.now() - current.updatedAt > 30_000) void props.state.refresh({ force: true })
+    void (async () => {
+      const current = dataOf(props.state.result())
+      if (!current) await props.state.refresh()
+      else if (Date.now() - current.updatedAt > 30_000) {
+        await props.state.refresh({ force: true })
+      }
+      await props.state.refreshModels({ force: true })
+    })()
   })
 
   const run = () => {
@@ -109,8 +112,10 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
                 props.state.consoleModelsLoading()
               }
               onClick={() => {
-                void props.state.refresh({ force: true })
-                void props.state.refreshModels({ force: true })
+                void (async () => {
+                  await props.state.refresh({ force: true })
+                  await props.state.refreshModels({ force: true })
+                })()
               }}
             >
               Refresh
