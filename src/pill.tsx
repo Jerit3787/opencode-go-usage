@@ -2,7 +2,7 @@ import type { ComposerPill, Context } from "@opencode/plugin/gui"
 import { UsageCard } from "./card"
 import type { UsageState } from "./state"
 import { USAGE_TITLE } from "./title"
-import { pillView } from "./usage"
+import { goPlanName, pillView } from "./usage"
 
 export function usagePill(ctx: Context, state: UsageState): ComposerPill {
   return {
@@ -12,7 +12,7 @@ export function usagePill(ctx: Context, state: UsageState): ComposerPill {
       const view = pillView(state.result())
       return {
         label: view.stale ? `${view.label} ·` : view.label,
-        title: USAGE_TITLE,
+        title: `${USAGE_TITLE} · ${goPlanName(state.plan())}`,
         tone: view.tone,
       }
     },

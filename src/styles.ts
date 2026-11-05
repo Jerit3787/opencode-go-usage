@@ -6,7 +6,7 @@ export const usageStyles = `
   --oc-go-usage-color: var(--v2-text-text-muted);
 }
 
-[data-slot="session-plugin-pill"][aria-label=${JSON.stringify(USAGE_TITLE)}]::before {
+[data-slot="session-plugin-pill"][aria-label^=${JSON.stringify(USAGE_TITLE)}]::before {
   content: "";
   width: 14px;
   height: 14px;

@@ -1,1 +1,1 @@
-export const USAGE_TITLE = "Plan usage limits · Go"
+export const USAGE_TITLE = "Plan usage limits"
