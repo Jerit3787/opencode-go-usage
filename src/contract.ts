@@ -39,6 +39,17 @@ const ConsoleModelSchema = Schema.Struct({
   cacheWrite1hTokens: Schema.Number,
 })
 
+const ConsoleActivitySchema = Schema.Struct({
+  startsAt: Schema.String,
+  daily: Schema.Array(
+    Schema.Struct({
+      date: Schema.String,
+      cost: Schema.Number,
+      requests: Schema.Number,
+    }),
+  ),
+})
+
 const ConsoleModelsResultSchema = Schema.Union([
   Schema.Struct({
     state: Schema.Literal("ok"),
@@ -58,6 +69,7 @@ const ConsoleModelsResultSchema = Schema.Union([
         Schema.Literal("go-plus"),
         Schema.Literal("go-teams"),
       ]),
+      activity: Schema.optional(ConsoleActivitySchema),
     }),
   }),
   Schema.Struct({ state: Schema.Literal("error"), message: Schema.String }),

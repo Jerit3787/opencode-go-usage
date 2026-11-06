@@ -3,6 +3,7 @@ import type { Context } from "@opencode/plugin/gui"
 import { ConsoleBreakdown } from "./console-breakdown"
 import { UsageInfo } from "./info-card"
 import { cardStyle, rowStyle } from "./layout"
+import { UsageGraph } from "./usage-graph"
 import { MeterRow } from "./meter"
 import { ModelBreakdown } from "./model-breakdown"
 import { Ring } from "./ring"
@@ -278,6 +279,8 @@ export function UsageSettings(props: { state: UsageState; ctx: Context }) {
             </div>
           )}
         </Show>
+
+        <UsageGraph state={props.state} />
 
         <Show
           when={consoleReady()}

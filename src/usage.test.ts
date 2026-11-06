@@ -18,6 +18,7 @@ import {
   modelAllowance,
   modelDisplayName,
   noticeFor,
+  parseConsoleActivity,
   parseConsoleModels,
   parseGoPlan,
   parseStatsModels,
@@ -306,6 +307,30 @@ it("calculates per-model window percentages and allowances", () => {
   expect(formatUnitUSD(0)).toBe("$0.00")
   expect(formatPercent1(12.58)).toBe("12.6%")
   expect(formatTokens(1_200_000)).toBe("1.2M")
+})
+
+it("parses Console Go activity for the projection graph", () => {
+  const activity = parseConsoleActivity({
+    startsAt: "2026-11-05T07:00:06.000Z",
+    daily: [
+      {
+        date: "2026-11-06",
+        totalCostMicroCents: "197842052",
+        totalRequests: "514",
+      },
+      {
+        date: "2026-11-05",
+        totalCostMicroCents: "379773979",
+        totalRequests: "1247",
+      },
+    ],
+  })
+
+  expect(activity?.startsAt).toBe("2026-11-05T07:00:06.000Z")
+  expect(activity?.daily.map((day) => day.date)).toEqual(["2026-11-05", "2026-11-06"])
+  expect(activity?.daily[0].cost).toBeCloseTo(3.79773979)
+  expect(activity?.daily[1].requests).toBe(514)
+  expect(parseConsoleActivity({ startsAt: "2026-11-05T07:00:06.000Z" })).toBeNull()
 })
 
 it("detects the active Go plan from the latest paid Console invoice", () => {

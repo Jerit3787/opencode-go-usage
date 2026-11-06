@@ -238,6 +238,21 @@ it("returns Console per-model spend for the signed-in workspace", async () => {
           { status: 200 },
         )
       }
+      if (url.includes("/console/api/activity/go")) {
+        return new Response(
+          JSON.stringify({
+            startsAt: "2026-11-05T07:00:06.000Z",
+            daily: [
+              {
+                date: "2026-11-05",
+                totalCostMicroCents: "379773979",
+                totalRequests: "1247",
+              },
+            ],
+          }),
+          { status: 200 },
+        )
+      }
       throw new Error(`unexpected request ${url}`)
     }),
   )
@@ -249,6 +264,7 @@ it("returns Console per-model spend for the signed-in workspace", async () => {
     expect(result.data.range).toBe("30d")
     expect(result.data.source).toBe("server")
     expect(result.data.plan).toBe("go-teams")
+    expect(result.data.activity?.daily[0].cost).toBeCloseTo(3.79773979)
     expect(result.data.models).toHaveLength(2)
     expect(result.data.models[0].modelID).toBe("deepseek-v4.1-flash")
     expect(result.data.models[0].cost).toBeCloseTo(31.6347074)

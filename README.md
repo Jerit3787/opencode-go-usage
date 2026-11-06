@@ -35,6 +35,8 @@ GET https://opencode.ai/console/api/usage/models?from=YYYY-MM-DD&to=YYYY-MM-DD&p
 
 It returns requests, tokens, and list cost per model. Those costs feed the per-model card. The Console token never leaves the main process and is never returned to the window.
 
+The **Usage projection** card reads `GET /api/activity/go` for the current Go period's daily activity. It plots cumulative allowance usage, a linear month-end forecast, and the 100% monthly limit. The percentage uses the plan pool: `$60` for Go/Go Teams or `$240` for Go Plus.
+
 If the active server is remote (for example, an OpenCode instance reached over SSH) and that server has no Console sign-in, the plugin falls back to **this desktop's** Console account. The card labels that source as `via this desktop`. The Console activity is account-wide, so it still covers the remote Go usage; the server meters remain the remote server's meters.
 
 ## Model breakdown
@@ -128,7 +130,7 @@ Remove the plugin directory entry from `plugins` in `~/.config/opencode/opencode
 - The Go key is used only for the Go usage GET. The Console token is used only for the Console usage GETs.
 - Neither secret is returned to the window, written to plugin storage, or logged.
 - The plugin sends no telemetry, prompts, code, or session content.
-- The only requests are the local OpenCode credential read, the local session-stats read, the local Console usage-limits read, the Console per-model usage read, the Console billing-invoice read, and the Go usage GET.
+- The only requests are the local OpenCode credential read, the local session-stats read, the local Console usage-limits read, the Console per-model usage read, the Console Go activity read, the Console billing-invoice read, and the Go usage GET.
 - The model breakdown reads only model IDs, costs, and token counts; it never reads prompts or message content.
 - Only percentages, reset times, model spend, and token counts are displayed.
 

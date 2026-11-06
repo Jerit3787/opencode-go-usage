@@ -242,6 +242,8 @@ total monthly % = Σ model monthly %
 
 The plan pool cancels out: `allowance = cost × (plan pool ÷ model limit)`, so `Σ allowance ÷ plan pool` is the same as `Σ cost ÷ model limit`. The pool is `$60` for Go and Go Teams, and `$240` for Go Plus. The 5-hour window starts at the first request after reset; the weekly window is the UTC calendar week.
 
+The settings page also includes a **Usage projection** card. It reads `GET /console/api/activity/go`, which returns `startsAt` and daily cost/request counts for the current Go period. The card plots cumulative cost ÷ plan pool, a linear forecast to the monthly reset, and the 100% monthly limit. It shows the current percentage, renewal date, forecast, on-pace date, and daily average. This is separate from the per-model cost/limit card: the projection uses the plan pool, not the per-model limits.
+
 Per-model limits come from the matching public plan table. Examples: DeepSeek V4.1 Flash is `$100 / $200 / $105` and DeepSeek V4 Pro is `$15 / $60 / $20` for Go / Go Plus / Go Teams.
 
 Console cost includes peak pricing: 2× on weekdays 01:00–04:00 and 06:00–10:00 UTC. The Console Activity table does not split peak and off-peak; the card links to the public pricing table.

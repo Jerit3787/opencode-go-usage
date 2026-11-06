@@ -83,6 +83,23 @@ export const GO_PLAN_NAMES: Record<GoPlan, string> = {
   "go-teams": "Go Teams",
 }
 
+export const GO_PLAN_POOLS: Record<GoPlan, number> = {
+  go: 60,
+  "go-plus": 240,
+  "go-teams": 60,
+}
+
+export type ConsoleActivityDay = {
+  date: string
+  cost: number
+  requests: number
+}
+
+export type ConsoleActivity = {
+  startsAt: string
+  daily: readonly ConsoleActivityDay[]
+}
+
 export type ConsoleModelAnalytics = {
   models: readonly ConsoleModelUsage[]
   range: "30d" | "period"
@@ -92,6 +109,7 @@ export type ConsoleModelAnalytics = {
   totalCost: number
   source: "server" | "desktop"
   plan: GoPlan
+  activity?: ConsoleActivity
 }
 
 export type ConsoleModelResult =
@@ -644,6 +662,24 @@ export function parseConsoleModels(body: unknown): ConsoleModelUsage[] {
   return models.sort(
     (left, right) => right.cost - left.cost || left.name.localeCompare(right.name),
   )
+}
+
+export function parseConsoleActivity(body: unknown): ConsoleActivity | null {
+  if (!isRecord(body) || typeof body.startsAt !== "string" || !Array.isArray(body.daily)) {
+    return null
+  }
+
+  const daily: ConsoleActivityDay[] = []
+  for (const entry of body.daily) {
+    if (!isRecord(entry) || typeof entry.date !== "string") continue
+    daily.push({
+      date: entry.date,
+      cost: microCents(entry.totalCostMicroCents),
+      requests: tokenCount(entry.totalRequests),
+    })
+  }
+  daily.sort((left, right) => left.date.localeCompare(right.date))
+  return { startsAt: body.startsAt, daily }
 }
 
 export function parseStatsModels(body: unknown): StatsModel[] {

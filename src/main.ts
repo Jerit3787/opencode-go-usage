@@ -16,11 +16,13 @@ import {
   cacheTtl,
   configuredPlan,
   dataOf,
+  parseConsoleActivity,
   parseConsoleModels,
   parseGoPlan,
   parseUsageLimits,
   pruneOldest,
   withStaleData,
+  type ConsoleActivity,
   type ConsoleModelResult,
   type GoPlan,
   type UsageData,
@@ -143,12 +145,16 @@ export const main: Plugin.MainSetup = (ctx) => {
         : from && to
           ? `from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
           : "range=30d"
-      const [modelsResponse, invoicesResponse] = await Promise.all([
+      const [modelsResponse, invoicesResponse, activityResponse] = await Promise.all([
         fetch(`${base}/api/usage/models?${range}&pageSize=100`, {
           headers,
           signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
         }),
         fetch(`${base}/api/billing/credit-invoices`, {
+          headers,
+          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        }).catch(() => undefined),
+        fetch(`${base}/api/activity/go`, {
           headers,
           signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
         }).catch(() => undefined),
@@ -178,6 +184,15 @@ export const main: Plugin.MainSetup = (ctx) => {
         }
       }
 
+      let activity: ConsoleActivity | undefined
+      if (activityResponse?.ok) {
+        try {
+          activity = parseConsoleActivity(await activityResponse.json()) ?? undefined
+        } catch {
+          // The model card can still render without the projection.
+        }
+      }
+
       const totalCost = models.reduce((total, model) => total + model.cost, 0)
       return {
         state: "ok",
@@ -190,6 +205,7 @@ export const main: Plugin.MainSetup = (ctx) => {
           totalCost,
           source,
           plan,
+          activity,
         },
       }
     } catch {
