@@ -15,6 +15,18 @@ popover:        Plan usage limits · Go
 
 The ring always shows the tightest of the three windows, so a nearly exhausted weekly or monthly cap cannot hide behind a healthy 5-hour number. It turns amber at 70% and red at 90% or when the plan reports a limit.
 
+## Screenshots
+
+### Composer popover
+
+![Usage popover in the composer](docs/screenshots/popover.png)
+
+### Settings
+
+![Go Teams usage in Settings](docs/screenshots/settings.png)
+
+The popover shows the plan name and all three meters. Settings shows the same meters with the Console model breakdown.
+
 ## What it reads
 
 The plugin uses the active `opencode-go` API key that OpenCode already stores. It calls:
