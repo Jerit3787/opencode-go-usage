@@ -161,3 +161,9 @@ The GUI bundle is `dist/gui-experimental.cjs`, built with the OpenCode GUI plugi
 ## Compatibility
 
 OpenCode Desktop 2.2.5+ and the experimental `@opencode/plugin` 2.2.5 GUI API. The pill ring is drawn with a scoped CSS `::before`; if a future app version changes the host pill markup, the pill falls back to its text percentage while the popover and Settings page continue to work.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for the release history.
+
+**0.1.0** (2026-11-06) — initial release: Go/Go Plus/Go Teams meters, Console model breakdown, and usage projection graph.
