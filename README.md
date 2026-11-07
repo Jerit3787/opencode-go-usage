@@ -166,4 +166,6 @@ OpenCode Desktop 2.2.5+ and the experimental `@opencode/plugin` 2.2.5 GUI API. T
 
 See [CHANGELOG.md](CHANGELOG.md) for the release history.
 
+**0.1.1** (2026-11-08) — marks the projected 100% crossing on the usage graph.
+
 **0.1.0** (2026-11-06) — initial release: Go/Go Plus/Go Teams meters, Console model breakdown, and usage projection graph.

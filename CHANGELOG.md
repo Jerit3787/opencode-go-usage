@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-08
+
 ### Added
 
 - A marker and date label on the usage projection where the forecast crosses the 100% monthly limit.
@@ -43,4 +45,5 @@ Initial public release.
 - Removed the duplicate **Open built-in Usage** button.
 
 [0.1.0]: https://github.com/Jerit3787/opencode-go-usage/releases/tag/v0.1.0
-[Unreleased]: https://github.com/Jerit3787/opencode-go-usage/compare/v0.1.0...HEAD
+[0.1.1]: https://github.com/Jerit3787/opencode-go-usage/compare/v0.1.0...v0.1.1
+[Unreleased]: https://github.com/Jerit3787/opencode-go-usage/compare/v0.1.1...HEAD
