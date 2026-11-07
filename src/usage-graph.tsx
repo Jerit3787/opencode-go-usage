@@ -91,6 +91,7 @@ function graphData(activity: ConsoleActivity, pool: number, resetAt: number, now
     currentY: y(percent),
     forecastX: x(periodDays),
     forecastY: forecast === undefined ? undefined : y(forecast),
+    runsOutX: runsOut === undefined ? undefined : x((runsOut - start) / DAY_MS),
   }
 }
 
@@ -272,6 +273,36 @@ export function UsageGraph(props: { state: UsageState }) {
                     stroke-width="1.5"
                     stroke-dasharray="4 4"
                   />
+                </Show>
+
+                <Show when={current().runsOutX !== undefined}>
+                  <line
+                    x1={current().runsOutX}
+                    x2={current().runsOutX}
+                    y1={current().y(100)}
+                    y2={HEIGHT - BOTTOM}
+                    stroke="var(--v2-state-fg-warning)"
+                    stroke-width="1"
+                    stroke-dasharray="2 4"
+                    opacity="0.45"
+                  />
+                  <circle
+                    cx={current().runsOutX}
+                    cy={current().y(100)}
+                    r="4"
+                    fill="var(--v2-background-bg-base)"
+                    stroke="var(--v2-state-fg-warning)"
+                    stroke-width="2"
+                  />
+                  <text
+                    x={current().runsOutX! - 6}
+                    y={current().y(100) - 8}
+                    text-anchor="end"
+                    font-size="9"
+                    fill="var(--v2-state-fg-warning)"
+                  >
+                    100% · {dateLabel(current().runsOut!)}
+                  </text>
                 </Show>
 
                 <circle
