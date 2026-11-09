@@ -3,6 +3,7 @@ import type { Context } from "@opencode/plugin/gui"
 import { UsageIpc } from "./contract"
 import {
   configuredPlan,
+  consoleRangeAttempts,
   dataOf,
   mergeModelUsage,
   parseStatsModels,
@@ -123,7 +124,7 @@ export function createUsageState(ctx: Context): UsageState {
         return result
       }
 
-      const attempts = since ? [{ since }, { from, to }] : [{ from, to }]
+      const attempts = consoleRangeAttempts({ since, from, to })
       let result: ConsoleModelResult | undefined
       for (const extra of attempts) {
         try {

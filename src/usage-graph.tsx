@@ -1,21 +1,16 @@
 import { For, Show } from "solid-js"
 import { cardStyle, rowStyle } from "./layout"
-import type { UsageState } from "./state"
 import {
-  dataOf,
-  formatPercent1,
-  GO_PLAN_POOLS,
-  goPlanName,
-  type ConsoleActivity,
-} from "./usage"
-
-const DAY_MS = 24 * 60 * 60 * 1000
-const WIDTH = 640
-const HEIGHT = 236
-const LEFT = 42
-const RIGHT = 14
-const TOP = 16
-const BOTTOM = 28
+  BOTTOM,
+  buildProjection,
+  DAY_MS,
+  HEIGHT,
+  LEFT,
+  RIGHT,
+  WIDTH,
+} from "./projection"
+import type { UsageState } from "./state"
+import { dataOf, formatPercent1, goPlanName } from "./usage"
 
 function dateLabel(ms: number): string {
   return new Intl.DateTimeFormat("en-US", {
@@ -23,76 +18,6 @@ function dateLabel(ms: number): string {
     day: "numeric",
     timeZone: "UTC",
   }).format(new Date(ms))
-}
-
-type Point = { day: number; value: number }
-
-function graphData(activity: ConsoleActivity, pool: number, resetAt: number, now: number) {
-  const start = Date.parse(activity.startsAt)
-  const end = resetAt > start ? resetAt : start + 30 * DAY_MS
-  const periodDays = Math.max(1, (end - start) / DAY_MS)
-  const elapsedDays = Math.max(0, Math.min(periodDays, (now - start) / DAY_MS))
-  const totalCost = activity.daily.reduce((total, day) => total + day.cost, 0)
-  const percent = pool > 0 ? (totalCost / pool) * 100 : 0
-  const forecast =
-    elapsedDays >= 1 && percent > 0 ? (percent * periodDays) / elapsedDays : undefined
-  const runsOut =
-    forecast !== undefined && forecast > 100 && percent > 0
-      ? start + ((now - start) * 100) / percent
-      : undefined
-  const perDay = elapsedDays >= 1 && percent > 0 ? percent / elapsedDays : undefined
-
-  const points: Point[] = [{ day: 0, value: 0 }]
-  if (totalCost > 0) {
-    let cumulative = 0
-    for (const day of activity.daily) {
-      cumulative += (day.cost / totalCost) * percent
-      const at = Date.parse(`${day.date}T00:00:00Z`) + DAY_MS
-      points.push({
-        day: Math.max(0, Math.min(periodDays, (at - start) / DAY_MS)),
-        value: cumulative,
-      })
-    }
-  }
-  if (points.length === 1) points.push({ day: elapsedDays, value: percent })
-
-  const maximum = Math.max(
-    100,
-    Math.ceil(Math.max(percent, forecast ?? 0, 1) / 50) * 50,
-  )
-  const x = (day: number) => LEFT + (Math.max(0, Math.min(periodDays, day)) / periodDays) * (WIDTH - LEFT - RIGHT)
-  const y = (value: number) => TOP + (1 - Math.max(0, Math.min(maximum, value)) / maximum) * (HEIGHT - TOP - BOTTOM)
-  const line = (items: Point[]) =>
-    items.map((point, index) => `${index === 0 ? "M" : "L"}${x(point.day)},${y(point.value)}`).join(" ")
-
-  return {
-    start,
-    end,
-    periodDays,
-    elapsedDays,
-    percent,
-    forecast,
-    runsOut,
-    perDay,
-    points,
-    maximum,
-    x,
-    y,
-    usagePath: line(points),
-    areaPath: `${line(points)} L${x(points.at(-1)!.day)},${y(0)} L${x(0)},${y(0)} Z`,
-    forecastPath:
-      forecast === undefined
-        ? undefined
-        : line([
-            { day: elapsedDays, value: percent },
-            { day: periodDays, value: forecast },
-          ]),
-    currentX: x(elapsedDays),
-    currentY: y(percent),
-    forecastX: x(periodDays),
-    forecastY: forecast === undefined ? undefined : y(forecast),
-    runsOutX: runsOut === undefined ? undefined : x((runsOut - start) / DAY_MS),
-  }
 }
 
 export function UsageGraph(props: { state: UsageState }) {
@@ -105,8 +30,13 @@ export function UsageGraph(props: { state: UsageState }) {
   const reset = () =>
     dataOf(props.state.result())?.windows.monthly.resetsAt ??
     (activity() ? Date.parse(activity()!.startsAt) + 30 * DAY_MS : Date.now())
-  const graph = () =>
-    activity() ? graphData(activity()!, GO_PLAN_POOLS[plan()], reset(), Date.now()) : undefined
+  const graph = () => {
+    const current = activity()
+    const percent = dataOf(props.state.result())?.windows.monthly.percent
+    return current && percent !== undefined
+      ? buildProjection(current, percent, reset(), Date.now())
+      : undefined
+  }
 
   return (
     <div style={cardStyle}>
@@ -171,7 +101,7 @@ export function UsageGraph(props: { state: UsageState }) {
               color: "var(--v2-text-text-muted)",
             }}
           >
-            Console activity isn't available, so there is no projection to draw.
+            Console activity or the server monthly meter isn't available, so there is no projection to draw.
           </div>
         }
       >

@@ -5,6 +5,7 @@ import {
   cacheTtl,
   clampPercent,
   configuredPlan,
+  consoleRangeAttempts,
   dataOf,
   formatPercent,
   formatPercent1,
@@ -307,6 +308,23 @@ it("calculates per-model window percentages and allowances", () => {
   expect(formatUnitUSD(0)).toBe("$0.00")
   expect(formatPercent1(12.58)).toBe("12.6%")
   expect(formatTokens(1_200_000)).toBe("1.2M")
+})
+
+it("prefers a calendar range over the Console since window", () => {
+  expect(
+    consoleRangeAttempts({
+      since: "2026-11-05T07:00:06.000Z",
+      from: "2026-11-05",
+      to: "2026-11-09",
+    }),
+  ).toEqual([
+    { from: "2026-11-05", to: "2026-11-09" },
+    { since: "2026-11-05T07:00:06.000Z" },
+  ])
+  expect(consoleRangeAttempts({ since: "2026-11-05T07:00:06.000Z" })).toEqual([
+    { since: "2026-11-05T07:00:06.000Z" },
+  ])
+  expect(consoleRangeAttempts({})).toEqual([{}])
 })
 
 it("parses Console Go activity for the projection graph", () => {

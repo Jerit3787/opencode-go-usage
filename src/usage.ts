@@ -83,10 +83,22 @@ export const GO_PLAN_NAMES: Record<GoPlan, string> = {
   "go-teams": "Go Teams",
 }
 
-export const GO_PLAN_POOLS: Record<GoPlan, number> = {
-  go: 60,
-  "go-plus": 240,
-  "go-teams": 60,
+export type ConsoleRange = {
+  since?: string
+  from?: string
+  to?: string
+}
+
+/**
+ * The Console API's `since` query is capped to a recent window in practice.
+ * Prefer the calendar date range so the whole Go period is included, and keep
+ * `since` as a fallback.
+ */
+export function consoleRangeAttempts(range: ConsoleRange): ConsoleRange[] {
+  const attempts: ConsoleRange[] = []
+  if (range.from && range.to) attempts.push({ from: range.from, to: range.to })
+  if (range.since) attempts.push({ since: range.since })
+  return attempts.length > 0 ? attempts : [{}]
 }
 
 export type ConsoleActivityDay = {

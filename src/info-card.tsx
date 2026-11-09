@@ -5,7 +5,7 @@ import { GO_PRICING_URL } from "./usage"
 const ROWS = [
   {
     label: "Monthly",
-    body: "Model cost ÷ model monthly limit. The $60 Go pool cancels out.",
+    body: "Each model's Console cost ÷ that model's monthly limit. Each model has its own limit; there is no shared dollar pool.",
   },
   {
     label: "5-hour",
@@ -21,7 +21,7 @@ const ROWS = [
   },
   {
     label: "Server meter",
-    body: "Authoritative and shown as a whole percentage. Differences under 1 point are within the server meter's display precision.",
+    body: "Authoritative and shown as a whole percentage. The calculated total can differ because Console reports model cost by calendar day while the Go period can start mid-day.",
   },
   {
     label: "Plan",

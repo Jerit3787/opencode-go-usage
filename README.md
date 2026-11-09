@@ -47,7 +47,7 @@ GET https://opencode.ai/console/api/usage/models?from=YYYY-MM-DD&to=YYYY-MM-DD&p
 
 It returns requests, tokens, and list cost per model. Those costs feed the per-model card. The Console token never leaves the main process and is never returned to the window.
 
-The **Usage projection** card reads `GET /api/activity/go` for the current Go period's daily activity. It plots cumulative allowance usage, a linear month-end forecast, and the 100% monthly limit. The percentage uses the plan pool: `$60` for Go/Go Teams or `$240` for Go Plus.
+The **Usage projection** card reads `GET /api/activity/go` for the current Go period's daily activity. It uses the server's monthly meter for the current percentage, distributes that percentage across the daily Console costs, and plots the cumulative line, a linear month-end forecast, and the 100% monthly limit. It does not divide cost by a plan price or a dollar pool.
 
 If the active server is remote (for example, an OpenCode instance reached over SSH) and that server has no Console sign-in, the plugin falls back to **this desktop's** Console account. The card labels that source as `via this desktop`. The Console activity is account-wide, so it still covers the remote Go usage; the server meters remain the remote server's meters.
 
@@ -68,7 +68,7 @@ model weekly %  = cost in the current UTC week  ÷ (50% of the monthly limit)
 total monthly % = Σ model monthly %
 ```
 
-The plan pool cancels out: `allowance = cost × (plan pool ÷ model limit)`, so `Σ allowance ÷ plan pool` is the same as `Σ cost ÷ model limit`. The pool is `$60` for Go and Go Teams, and `$240` for Go Plus.
+Each model has its own monthly limit. The calculated monthly total is `Σ (Console cost ÷ that model's monthly limit)`; there is no shared dollar pool. The plan price is not a usage pool.
 
 The 5-hour window starts at the first request after reset, not a fixed trailing 5 hours. The weekly window is the UTC calendar week, not a trailing 7 days.
 
@@ -102,7 +102,7 @@ Overrides require the object form of the plugin entry:
 }
 ```
 
-If the calculated total and the server monthly meter differ, the card shows both numbers. The server meter is authoritative; the card does not fabricate a matching allowance. When Console is not connected, the card falls back to this server's local session stats and labels the source as local. Local spend can miss other clients and models whose cost was not recorded.
+If the calculated total and the server monthly meter differ, the card shows both numbers. The server meter is authoritative; the card does not fabricate a matching allowance. The Console model endpoint reports whole calendar days, so the first day can include usage from before the Go period's exact start time. When Console is not connected, the card falls back to this server's local session stats and labels the source as local. Local spend can miss other clients and models whose cost was not recorded.
 
 ## Install
 

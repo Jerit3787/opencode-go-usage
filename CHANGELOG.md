@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- Removed the incorrect `$60`/`$240` plan-pool explanation. Go usage limits are per model; the plan price is not a usage allowance.
+
+### Fixed
+
+- The usage projection now uses the server's monthly meter as the current percentage instead of dividing Console cost by a plan price, so its forecast and 100% crossing match the authoritative meter.
+- The Console model breakdown now uses calendar date ranges because the Console API's `since` query returns only a recent window.
+
 ## [0.1.1] - 2026-11-08
 
 ### Added
