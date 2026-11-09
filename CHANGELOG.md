@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-11-09
+
+### Fixed
+
+- The model breakdown prorates the first calendar day from the exact Go period start, so usage before an upgrade is excluded.
+
 ## [0.1.2] - 2026-11-09
 
 ### Changed
@@ -16,7 +22,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - The usage projection now uses the server's monthly meter as the current percentage instead of dividing Console cost by a plan price, so its forecast and 100% crossing match the authoritative meter.
 - The Console model breakdown now uses calendar date ranges because the Console API's `since` query returns only a recent window.
-- The model breakdown prorates the first calendar day from the exact Go period start, so usage before an upgrade is excluded.
 
 ## [0.1.1] - 2026-11-08
 
@@ -59,4 +64,5 @@ Initial public release.
 [0.1.0]: https://github.com/Jerit3787/opencode-go-usage/releases/tag/v0.1.0
 [0.1.1]: https://github.com/Jerit3787/opencode-go-usage/compare/v0.1.0...v0.1.1
 [0.1.2]: https://github.com/Jerit3787/opencode-go-usage/compare/v0.1.1...v0.1.2
-[Unreleased]: https://github.com/Jerit3787/opencode-go-usage/compare/v0.1.2...HEAD
+[0.1.3]: https://github.com/Jerit3787/opencode-go-usage/compare/v0.1.2...v0.1.3
+[Unreleased]: https://github.com/Jerit3787/opencode-go-usage/compare/v0.1.3...HEAD

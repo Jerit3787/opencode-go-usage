@@ -166,6 +166,8 @@ OpenCode Desktop 2.2.5+ and the experimental `@opencode/plugin` 2.2.5 GUI API. T
 
 See [CHANGELOG.md](CHANGELOG.md) for the release history.
 
+**0.1.3** (2026-11-09) — prorates the first model day from the exact Go start.
+
 **0.1.2** (2026-11-09) — aligns the usage projection with the server meter and fixes the model range.
 
 **0.1.1** (2026-11-08) — marks the projected 100% crossing on the usage graph.
