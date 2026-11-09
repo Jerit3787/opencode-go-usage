@@ -68,7 +68,7 @@ model weekly %  = cost in the current UTC week  ÷ (50% of the monthly limit)
 total monthly % = Σ model monthly %
 ```
 
-Each model has its own monthly limit. The calculated monthly total is `Σ (Console cost ÷ that model's monthly limit)`; there is no shared dollar pool. The plan price is not a usage pool.
+Each model has its own monthly limit. The calculated monthly total is `Σ (Console cost ÷ that model's monthly limit)`; there is no shared dollar pool. The plan price is not a usage pool. Console buckets model usage by calendar day, so the first day is prorated from the exact Go period start (for example, the plan upgrade time) to avoid counting usage from before the period began.
 
 The 5-hour window starts at the first request after reset, not a fixed trailing 5 hours. The weekly window is the UTC calendar week, not a trailing 7 days.
 
@@ -102,7 +102,7 @@ Overrides require the object form of the plugin entry:
 }
 ```
 
-If the calculated total and the server monthly meter differ, the card shows both numbers. The server meter is authoritative; the card does not fabricate a matching allowance. The Console model endpoint reports whole calendar days, so the first day can include usage from before the Go period's exact start time. When Console is not connected, the card falls back to this server's local session stats and labels the source as local. Local spend can miss other clients and models whose cost was not recorded.
+If the calculated total and the server monthly meter differ, the card shows both numbers. The server meter is authoritative; the card does not fabricate a matching allowance. The model card prorates the first calendar day from the exact Go period start, so usage before an upgrade is excluded; remaining differences are meter rounding. When Console is not connected, the card falls back to this server's local session stats and labels the source as local. Local spend can miss other clients and models whose cost was not recorded.
 
 ## Install
 
@@ -142,7 +142,7 @@ Remove the plugin directory entry from `plugins` in `~/.config/opencode/opencode
 - The Go key is used only for the Go usage GET. The Console token is used only for the Console usage GETs.
 - Neither secret is returned to the window, written to plugin storage, or logged.
 - The plugin sends no telemetry, prompts, code, or session content.
-- The only requests are the local OpenCode credential read, the local session-stats read, the local Console usage-limits read, the Console per-model usage read, the Console Go activity read, the Console billing-invoice read, and the Go usage GET.
+- The only requests are the local OpenCode credential read, the local session-stats read, the local Console usage-limits read, the Console per-model usage reads, the Console Go activity read, the Console billing-invoice read, and the Go usage GET.
 - The model breakdown reads only model IDs, costs, and token counts; it never reads prompts or message content.
 - Only percentages, reset times, model spend, and token counts are displayed.
 

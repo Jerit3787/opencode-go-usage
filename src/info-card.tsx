@@ -5,7 +5,7 @@ import { GO_PRICING_URL } from "./usage"
 const ROWS = [
   {
     label: "Monthly",
-    body: "Each model's Console cost ÷ that model's monthly limit. Each model has its own limit; there is no shared dollar pool.",
+    body: "Each model's Console cost ÷ that model's monthly limit. Each model has its own limit; there is no shared dollar pool. The first calendar day is prorated from the exact Go period start.",
   },
   {
     label: "5-hour",
@@ -21,7 +21,7 @@ const ROWS = [
   },
   {
     label: "Server meter",
-    body: "Authoritative and shown as a whole percentage. The calculated total can differ because Console reports model cost by calendar day while the Go period can start mid-day.",
+    body: "Authoritative and shown as a whole percentage. The model calculation prorates the first calendar day from the exact Go period start, so remaining differences should be within meter rounding.",
   },
   {
     label: "Plan",

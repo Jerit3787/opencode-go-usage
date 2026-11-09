@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - The usage projection now uses the server's monthly meter as the current percentage instead of dividing Console cost by a plan price, so its forecast and 100% crossing match the authoritative meter.
 - The Console model breakdown now uses calendar date ranges because the Console API's `since` query returns only a recent window.
+- The model breakdown prorates the first calendar day from the exact Go period start, so usage before an upgrade is excluded.
 
 ## [0.1.1] - 2026-11-08
 

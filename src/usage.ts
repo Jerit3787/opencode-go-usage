@@ -118,6 +118,8 @@ export type ConsoleModelAnalytics = {
   from?: string
   to?: string
   since?: string
+  startAt?: string
+  firstDayModels?: readonly ConsoleModelUsage[]
   totalCost: number
   source: "server" | "desktop"
   plan: GoPlan
@@ -766,6 +768,38 @@ export function windowPercent(
   const limit = allowance * fraction
   if (limit <= 0) return undefined
   return (cost / limit) * 100
+}
+
+/**
+ * Removes the estimated pre-period part of the first calendar day. Console
+ * model usage is bucketed by whole UTC days, but a Go period can start in the
+ * middle of the day (for example after a plan upgrade). The activity endpoint
+ * gives the exact start; prorate the first day by elapsed time.
+ */
+export function adjustForPeriodStart(
+  model: ConsoleModelUsage,
+  startAt: string | undefined,
+  from: string | undefined,
+  firstDayModels: readonly ConsoleModelUsage[] | undefined,
+): ConsoleModelUsage {
+  if (!startAt || !from || !firstDayModels?.length) return model
+  const start = Date.parse(startAt)
+  const dayStart = Date.parse(`${from}T00:00:00Z`)
+  if (!Number.isFinite(start) || !Number.isFinite(dayStart)) return model
+  if (start <= dayStart || start >= dayStart + DAY_MS) return model
+
+  const first = firstDayModels.find(
+    (entry) => entry.providerID === model.providerID && entry.modelID === model.modelID,
+  )
+  if (!first) return model
+
+  const fraction = (start - dayStart) / DAY_MS
+  return {
+    ...model,
+    cost: Math.max(0, model.cost - first.cost * fraction),
+    requests: Math.max(0, model.requests - first.requests * fraction),
+    tokens: Math.max(0, model.tokens - first.tokens * fraction),
+  }
 }
 
 export function totalModelPercent(

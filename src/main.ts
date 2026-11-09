@@ -24,6 +24,7 @@ import {
   withStaleData,
   type ConsoleActivity,
   type ConsoleModelResult,
+  type ConsoleModelUsage,
   type GoPlan,
   type UsageData,
   type UsageResult,
@@ -31,6 +32,7 @@ import {
 
 const FETCH_TIMEOUT_MS = 10_000
 const MODEL_CACHE_TTL_MS = 45_000
+const DAY_MS = 24 * 60 * 60 * 1000
 const MAX_ENTRIES = 32
 
 function authFilePath(): string | undefined {
@@ -115,6 +117,7 @@ export const main: Plugin.MainSetup = (ctx) => {
     from?: string,
     to?: string,
     since?: string,
+    startAt?: string,
   ): Promise<ConsoleModelResult> => {
     const entries = await readCredentialEntries(endpoint)
     if (!entries) {
@@ -145,20 +148,40 @@ export const main: Plugin.MainSetup = (ctx) => {
         : from && to
           ? `from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
           : "range=30d"
-      const [modelsResponse, invoicesResponse, activityResponse] = await Promise.all([
-        fetch(`${base}/api/usage/models?${range}&pageSize=100`, {
-          headers,
-          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-        }),
-        fetch(`${base}/api/billing/credit-invoices`, {
-          headers,
-          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-        }).catch(() => undefined),
-        fetch(`${base}/api/activity/go`, {
-          headers,
-          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-        }).catch(() => undefined),
-      ])
+      // The model endpoint buckets by whole UTC days. When a plan starts in the
+      // middle of the first day, fetch that day separately so the card can
+      // prorate away the pre-period usage.
+      const start = startAt ? Date.parse(startAt) : Number.NaN
+      const dayStart = from ? Date.parse(`${from}T00:00:00Z`) : Number.NaN
+      const prorateFirstDay =
+        Number.isFinite(start) &&
+        Number.isFinite(dayStart) &&
+        start > dayStart &&
+        start < dayStart + DAY_MS
+      const firstDayRange = prorateFirstDay
+        ? `from=${encodeURIComponent(from!)}&to=${encodeURIComponent(from!)}`
+        : undefined
+      const [modelsResponse, invoicesResponse, activityResponse, firstDayResponse] =
+        await Promise.all([
+          fetch(`${base}/api/usage/models?${range}&pageSize=100`, {
+            headers,
+            signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+          }),
+          fetch(`${base}/api/billing/credit-invoices`, {
+            headers,
+            signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+          }).catch(() => undefined),
+          fetch(`${base}/api/activity/go`, {
+            headers,
+            signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+          }).catch(() => undefined),
+          firstDayRange
+            ? fetch(`${base}/api/usage/models?${firstDayRange}&pageSize=100`, {
+                headers,
+                signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+              }).catch(() => undefined)
+            : Promise.resolve(undefined),
+        ])
 
       if (!modelsResponse.ok) {
         return {
@@ -193,6 +216,15 @@ export const main: Plugin.MainSetup = (ctx) => {
         }
       }
 
+      let firstDayModels: ConsoleModelUsage[] | undefined
+      if (prorateFirstDay && firstDayResponse?.ok) {
+        try {
+          firstDayModels = parseConsoleModels(await firstDayResponse.json())
+        } catch {
+          // Fall back to the whole-day totals if the first-day read fails.
+        }
+      }
+
       const totalCost = models.reduce((total, model) => total + model.cost, 0)
       return {
         state: "ok",
@@ -202,6 +234,8 @@ export const main: Plugin.MainSetup = (ctx) => {
           from: from && to ? from : undefined,
           to: from && to ? to : undefined,
           since,
+          startAt: prorateFirstDay ? startAt : undefined,
+          firstDayModels: prorateFirstDay ? firstDayModels : undefined,
           totalCost,
           source,
           plan,
@@ -348,7 +382,7 @@ export const main: Plugin.MainSetup = (ctx) => {
 
     async consoleModels(input): Promise<ConsoleModelResult> {
       const serverID = input.server ?? "sidecar"
-      const modelCacheKey = `${serverID}:${input.since ?? `${input.from ?? "30d"}:${input.to ?? ""}`}`
+      const modelCacheKey = `${serverID}:${input.startAt ?? ""}:${input.since ?? `${input.from ?? "30d"}:${input.to ?? ""}`}`
       const cached = consoleModelCache.get(modelCacheKey)
       if (!input.force && cached && Date.now() - cached.at < MODEL_CACHE_TTL_MS) {
         return cached.result
@@ -391,6 +425,7 @@ export const main: Plugin.MainSetup = (ctx) => {
           input.from,
           input.to,
           input.since,
+          input.startAt,
         )
         if (result.state === "ok") {
           if (candidate.source === "desktop") {

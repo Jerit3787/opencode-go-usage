@@ -1,6 +1,7 @@
 import { expect, it } from "vitest"
 import {
   actionLabel,
+  adjustForPeriodStart,
   cacheKey,
   cacheTtl,
   clampPercent,
@@ -446,6 +447,45 @@ it("parses Console per-model costs and token totals", () => {
     tokens: 142976441,
   })
   expect(parseConsoleModels({ items: "not-an-array" })).toEqual([])
+})
+
+it("prorates the first calendar day from the exact Go period start", () => {
+  const fraction =
+    (Date.parse("2026-11-05T07:00:06.000Z") - Date.parse("2026-11-05T00:00:00.000Z")) /
+    (24 * 60 * 60 * 1000)
+  const model = {
+    providerID: "opencode-go",
+    modelID: "deepseek-v4.1-flash",
+    name: "DeepSeek V4.1 Flash",
+    cost: 24.99443409,
+    requests: 9000,
+    tokens: 3_600_000_000,
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheReadTokens: 0,
+    cacheWrite5mTokens: 0,
+    cacheWrite1hTokens: 0,
+  }
+  const firstDay = {
+    ...model,
+    cost: 5.64251163,
+    requests: 1826,
+    tokens: 507_397_265,
+  }
+
+  const adjusted = adjustForPeriodStart(
+    model,
+    "2026-11-05T07:00:06.000Z",
+    "2026-11-05",
+    [firstDay],
+  )
+  expect(adjusted.cost).toBeCloseTo(model.cost - firstDay.cost * fraction)
+  expect(adjusted.requests).toBeCloseTo(model.requests - firstDay.requests * fraction)
+  expect(adjusted.tokens).toBeCloseTo(model.tokens - firstDay.tokens * fraction)
+  expect(adjustForPeriodStart(model, undefined, "2026-11-05", [firstDay])).toEqual(model)
+  expect(adjustForPeriodStart(model, "2026-11-05T00:00:00.000Z", "2026-11-05", [firstDay])).toEqual(
+    model,
+  )
 })
 
 it("sums per-model percentages into the pooled monthly total", () => {

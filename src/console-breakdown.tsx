@@ -3,6 +3,7 @@ import type { Context } from "@opencode/plugin/gui"
 import { cardStyle, rowStyle } from "./layout"
 import type { UsageState } from "./state"
 import {
+  adjustForPeriodStart,
   clampPercent,
   dataOf,
   formatPercent1,
@@ -168,8 +169,15 @@ export function ConsoleBreakdown(props: { state: UsageState; ctx: Context }) {
     }
     return allowances
   }
+  const adjustedModels = () => {
+    const current = data()
+    if (!current) return []
+    return current.models.map((model) =>
+      adjustForPeriodStart(model, current.startAt, current.from, current.firstDayModels),
+    )
+  }
   const rows = (): Row[] => {
-    return (data()?.models ?? [])
+    return adjustedModels()
       .map((model, index) => {
         const limit = modelAllowance(model.modelID, overrides(), plan())
         return {
@@ -195,7 +203,7 @@ export function ConsoleBreakdown(props: { state: UsageState; ctx: Context }) {
       ? "var(--v2-text-text-muted)"
       : "var(--v2-state-fg-warning)"
   const excluded = () => rows().filter((row) => row.limit === undefined).length
-  const totalCost = () => data()?.totalCost ?? 0
+  const totalCost = () => adjustedModels().reduce((total, model) => total + model.cost, 0)
 
   return (
     <div style={cardStyle}>

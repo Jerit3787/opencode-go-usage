@@ -42,7 +42,14 @@ const credentialBody = {
 
 type Impl = {
   get(input: { server?: string; force?: boolean }): Promise<UsageResult>
-  consoleModels(input: { server?: string; force?: boolean }): Promise<ConsoleModelResult>
+  consoleModels(input: {
+    server?: string
+    force?: boolean
+    from?: string
+    to?: string
+    since?: string
+    startAt?: string
+  }): Promise<ConsoleModelResult>
 }
 
 const originalXdg = process.env.XDG_DATA_HOME
@@ -278,6 +285,79 @@ it("returns Console per-model spend for the signed-in workspace", async () => {
 
   await api.consoleModels({ server: "sidecar" })
   expect(calls.filter((url) => url.includes("/console/api/usage/models"))).toHaveLength(1)
+})
+
+it("fetches the first calendar day to prorate a mid-day Go start", async () => {
+  const consoleCredential = {
+    id: "console",
+    integrationID: "opencode",
+    label: "Personal",
+    active: true,
+    value: {
+      type: "oauth",
+      access: "console-access",
+      metadata: {
+        server: "https://opencode.ai/console",
+        orgID: "org_1",
+        orgName: "Personal",
+      },
+    },
+  }
+  const model = {
+    provider: "opencode-go",
+    model: "deepseek-v4.1-flash",
+    totalCostMicroCents: "1000000000",
+    totalRequests: "1000",
+    totalInputTokens: "100",
+    totalOutputTokens: "50",
+    totalCacheReadTokens: "10",
+    totalCacheWrite5mTokens: "0",
+    totalCacheWrite1hTokens: "0",
+  }
+  const calls: string[] = []
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string | URL | Request) => {
+      const url = String(input)
+      calls.push(url)
+      if (url.includes("/api/credential")) {
+        return new Response(JSON.stringify({ data: [consoleCredential] }), { status: 200 })
+      }
+      if (url.includes("/console/api/usage/models") && url.includes("to=2026-11-05&")) {
+        return new Response(JSON.stringify({ items: [{ ...model, totalCostMicroCents: "500000000", totalRequests: "400" }] }), {
+          status: 200,
+        })
+      }
+      if (url.includes("/console/api/usage/models")) {
+        return new Response(JSON.stringify({ items: [model] }), { status: 200 })
+      }
+      if (url.includes("/console/api/billing/credit-invoices")) {
+        return new Response("[]", { status: 200 })
+      }
+      if (url.includes("/console/api/activity/go")) {
+        return new Response(
+          JSON.stringify({ startsAt: "2026-11-05T07:00:06.000Z", daily: [] }),
+          { status: 200 },
+        )
+      }
+      throw new Error(`unexpected request ${url}`)
+    }),
+  )
+
+  const api = setup()
+  const result = await api.consoleModels({
+    server: "sidecar",
+    from: "2026-11-05",
+    to: "2026-11-09",
+    startAt: "2026-11-05T07:00:06.000Z",
+  })
+  expect(result.state).toBe("ok")
+  if (result.state === "ok") {
+    expect(result.data.startAt).toBe("2026-11-05T07:00:06.000Z")
+    expect(result.data.firstDayModels?.[0].cost).toBeCloseTo(5)
+  }
+  expect(calls.filter((url) => url.includes("/console/api/usage/models"))).toHaveLength(2)
+  expect(calls.some((url) => url.includes("from=2026-11-05&to=2026-11-05"))).toBe(true)
 })
 
 it("prefers this desktop's Console account for a remote server", async () => {

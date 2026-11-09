@@ -112,12 +112,14 @@ export function createUsageState(ctx: Context): UsageState {
         let result = await ctx.main(UsageIpc).consoleModels({
           server: "sidecar",
           force: true,
+          startAt: since,
           ...extra,
         })
         if (result.state !== "ok" && target !== "sidecar") {
           result = await ctx.main(UsageIpc).consoleModels({
             server: target,
             force: true,
+            startAt: since,
             ...extra,
           })
         }

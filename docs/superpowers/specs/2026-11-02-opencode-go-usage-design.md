@@ -244,6 +244,8 @@ Each model has its own monthly limit. The calculated monthly total is `Σ (Conso
 
 The settings page also includes a **Usage projection** card. It reads `GET /console/api/activity/go`, which returns `startsAt` and daily cost/request counts for the current Go period. The card uses the server's monthly meter for the current percentage, distributes it across the daily cost, and plots a linear forecast to the monthly reset and the 100% monthly limit. It shows the current percentage, renewal date, forecast, on-pace date, and daily average. This is separate from the per-model cost/limit card and does not divide Console cost by a plan price or dollar pool.
 
+Console model usage is bucketed by calendar day, while a Go period can start mid-day after an upgrade. The model card fetches the first calendar day separately and prorates it using the exact `startsAt` timestamp, so usage before the period start is excluded.
+
 Per-model limits come from the matching public plan table. Examples: DeepSeek V4.1 Flash is `$100 / $200 / $105` and DeepSeek V4 Pro is `$15 / $60 / $20` for Go / Go Plus / Go Teams.
 
 Console cost includes peak pricing: 2× on weekdays 01:00–04:00 and 06:00–10:00 UTC. The Console Activity table does not split peak and off-peak; the card links to the public pricing table.
